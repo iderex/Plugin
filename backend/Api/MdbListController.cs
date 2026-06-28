@@ -18,14 +18,19 @@ public class MdbListController : ControllerBase
 {
     private readonly MoonfinSettingsService _settingsService;
     private readonly MdbListCacheService _cacheService;
+    private readonly MdbListListsCacheService _listsCacheService;
     private readonly IHttpClientFactory _httpClientFactory;
 
     private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
 
-    public MdbListController(MoonfinSettingsService settingsService, MdbListCacheService cacheService, IHttpClientFactory httpClientFactory)
+    // Lenient read TTL so a stale cache still serves rows rather than returning nothing.
+    private static readonly TimeSpan ListsReadTtl = TimeSpan.FromDays(30);
+
+    public MdbListController(MoonfinSettingsService settingsService, MdbListCacheService cacheService, MdbListListsCacheService listsCacheService, IHttpClientFactory httpClientFactory)
     {
         _settingsService = settingsService;
         _cacheService = cacheService;
+        _listsCacheService = listsCacheService;
         _httpClientFactory = httpClientFactory;
     }
 
@@ -137,6 +142,83 @@ public class MdbListController : ControllerBase
         {
             Success = true,
             Ratings = filteredRatings
+        });
+    }
+
+    /// <summary>
+    /// Returns the catalog of MDBList official lists available to show as home rows.
+    /// Read-only from the server-side cache populated by the lists sync task.
+    /// </summary>
+    [HttpGet("Lists")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<MdbListCatalogResponse> GetLists()
+    {
+        var catalog = _listsCacheService.TryGetCatalog(ListsReadTtl);
+        if (catalog == null)
+        {
+            return Ok(new MdbListCatalogResponse
+            {
+                Success = false,
+                Error = "No MDBList lists cached yet. Ask your server admin to set a server-wide MDBList key and run the Moonfin MDBList Official Lists Sync task."
+            });
+        }
+
+        return Ok(new MdbListCatalogResponse
+        {
+            Success = true,
+            Lists = catalog
+        });
+    }
+
+    /// <summary>
+    /// Returns the cached items for a single official list, optionally filtered by media type.
+    /// Official lists are combined movie + show; pass <paramref name="mediatype"/> to narrow.
+    /// </summary>
+    [HttpGet("Lists/{slug}/Items")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<MdbListItemsResponse> GetListItems(
+        string slug,
+        [FromQuery] string? mediatype)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return BadRequest(new { Error = "Missing required path parameter: slug" });
+        }
+
+        string? typeFilter = null;
+        if (!string.IsNullOrWhiteSpace(mediatype))
+        {
+            typeFilter = mediatype.Trim().ToLowerInvariant();
+            if (typeFilter != "movie" && typeFilter != "show")
+            {
+                return BadRequest(new { Error = "Invalid mediatype. Expected: movie or show" });
+            }
+        }
+
+        var items = _listsCacheService.TryGetItems(slug.Trim(), ListsReadTtl);
+        if (items == null)
+        {
+            return Ok(new MdbListItemsResponse
+            {
+                Success = false,
+                Slug = slug,
+                Error = "This list is not cached yet. It may sync on the next run of the Moonfin MDBList Official Lists Sync task."
+            });
+        }
+
+        if (typeFilter != null)
+        {
+            items = items.Where(i => string.Equals(i.Type, typeFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        return Ok(new MdbListItemsResponse
+        {
+            Success = true,
+            Slug = slug,
+            Items = items
         });
     }
 
@@ -282,4 +364,92 @@ internal class MdbListApiResponse
 
     [JsonPropertyName("ratings")]
     public List<MdbListRating>? Ratings { get; set; }
+}
+
+public class MdbListCatalogResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("lists")]
+    public List<MdbListCatalogEntry> Lists { get; set; } = new();
+}
+
+public class MdbListCatalogEntry
+{
+    /// <summary>Stable slug used to fetch this list's items.</summary>
+    [JsonPropertyName("slug")]
+    public string Slug { get; set; } = string.Empty;
+
+    /// <summary>Human-readable list name (e.g. "Top Watched Movies of The Week").</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Media type of the list: movie, show, or empty for combined lists.</summary>
+    [JsonPropertyName("mediatype")]
+    public string? Mediatype { get; set; }
+
+    /// <summary>Number of items reported by MDBList for this list.</summary>
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+}
+
+public class MdbListItemsResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("slug")]
+    public string Slug { get; set; } = string.Empty;
+
+    [JsonPropertyName("items")]
+    public List<MdbListItem> Items { get; set; } = new();
+}
+
+public class MdbListItem
+{
+    /// <summary>TMDB id (also present in providerIds.Tmdb).</summary>
+    [JsonPropertyName("id")]
+    public long? Id { get; set; }
+
+    /// <summary>Title of the movie or show.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>movie or show.</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>Release year, when MDBList provides it.</summary>
+    [JsonPropertyName("productionYear")]
+    public int? ProductionYear { get; set; }
+
+    /// <summary>Rank within the list (1-based), used to preserve list order.</summary>
+    [JsonPropertyName("rank")]
+    public int? Rank { get; set; }
+
+    /// <summary>
+    /// External ids the client matches against the local library.
+    /// Casing intentionally matches the client's AggregatedItem.providerIds (Imdb/Tmdb/Tvdb).
+    /// </summary>
+    [JsonPropertyName("providerIds")]
+    public MdbListItemProviderIds ProviderIds { get; set; } = new();
+}
+
+public class MdbListItemProviderIds
+{
+    [JsonPropertyName("Imdb")]
+    public string? Imdb { get; set; }
+
+    [JsonPropertyName("Tmdb")]
+    public string? Tmdb { get; set; }
+
+    [JsonPropertyName("Tvdb")]
+    public string? Tvdb { get; set; }
 }

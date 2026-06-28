@@ -49,6 +49,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public string? TmdbApiKey { get; set; }
 
     /// <summary>
+    /// Fetch and cache MDBList official lists (curated charts) on a schedule so clients
+    /// can show them as home rows. Uses the server-wide MDBList key above.
+    /// </summary>
+    public bool MdblistOfficialListsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Maximum number of items cached per official list. Caps cache size and API calls
+    /// (250 covers charts like IMDb Top 250).
+    /// </summary>
+    public int MdblistOfficialListsMaxItems { get; set; } = 250;
+
+    /// <summary>
     /// Optional default server URL shown in the Moonfin web Add Server dialog.
     /// </summary>
     public string? WebDefaultServerUrl { get; set; }

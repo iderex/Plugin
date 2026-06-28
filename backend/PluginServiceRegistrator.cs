@@ -18,6 +18,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<MoonfinThemeStore>();
         serviceCollection.AddSingleton<SeerrSessionService>();
         serviceCollection.AddSingleton<MdbListCacheService>();
+        serviceCollection.AddSingleton<MdbListListsCacheService>();
         serviceCollection.AddHttpClient();
 
         // Auto-register file transformations on plugin load (no manual task needed)
