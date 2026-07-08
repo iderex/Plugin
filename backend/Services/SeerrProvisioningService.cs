@@ -20,7 +20,7 @@ public class SeerrProvisioningService
     private const int OwnerSeerrUserId = 1;
 
     // MEDIA_PENDING (2) | MEDIA_APPROVED (4) | MEDIA_AVAILABLE (8) | MEDIA_DECLINED (64).
-    private const int TargetTypes = 78;
+    public const int TargetTypes = 78;
 
     private const string WebhookPath = "/Moonfin/Seerr/Webhook";
     private const string SettingsPath = "settings/notifications/webhook";
@@ -105,6 +105,53 @@ public class SeerrProvisioningService
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Clears the throttle and provisions again immediately. For an admin who needs to push a
+    /// fresh webhook config (for example after the target types bitmask changed).
+    /// </summary>
+    public Task<ProvisioningResult> ForceReprovisionAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Exchange(ref _lastAttemptTicks, 0);
+        return EnsureWebhookAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads the webhook's current types bitmask from Seerr via an admin session. Returns null
+    /// when it can't be read. Lets an admin confirm what Seerr will actually send.
+    /// </summary>
+    public async Task<int?> GetLiveWebhookTypesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var admin = _sessionService.EnumerateSessions().FirstOrDefault(IsAdmin);
+            if (admin == null)
+            {
+                return null;
+            }
+
+            var response = await _sessionService.RequestWithSessionAsync(
+                admin, HttpMethod.Get, SettingsPath, cancellationToken: cancellationToken);
+
+            if (response.StatusCode is < 200 or >= 300 || response.Body == null)
+            {
+                return null;
+            }
+
+            using var doc = JsonDocument.Parse(response.Body);
+            if (doc.RootElement.TryGetProperty("types", out var ty) && ty.ValueKind == JsonValueKind.Number &&
+                ty.TryGetInt32(out var types))
+            {
+                return types;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read live webhook types");
+        }
+
+        return null;
     }
 
     private async Task<ProvisioningResult> ProvisionAsync(CancellationToken cancellationToken)

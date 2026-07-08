@@ -33,7 +33,6 @@ public class RelaySender
         string route,
         IReadOnlyDictionary<string, string>? data = null,
         string? apnsCategory = null,
-        bool dataOnly = false,
         CancellationToken cancellationToken = default)
     {
         var empty = Array.Empty<PushResult>();
@@ -67,11 +66,6 @@ public class RelaySender
         if (!string.IsNullOrEmpty(apnsCategory))
         {
             payload["apnsCategory"] = apnsCategory!;
-        }
-
-        if (dataOnly)
-        {
-            payload["dataOnly"] = true;
         }
 
         try

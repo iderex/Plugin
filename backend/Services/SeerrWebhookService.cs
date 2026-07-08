@@ -305,9 +305,10 @@ public class SeerrWebhookService
         });
     }
 
-    // Splits the user's devices into iOS vs everything-else ("android") and shapes each group so a
-    // closed app can render Approve/Deny. iOS gets a data + apnsCategory push; Android gets a
-    // data-only push carrying the display fields. Direct-FCM and relay paths mirror each other.
+    // Splits the user's devices into iOS vs everything-else ("android"). iOS gets a data +
+    // apnsCategory push so a closed app can render Approve/Deny inline. Android gets a normal
+    // notification (same shape as a non-request send) so the OS renders it even when the app is
+    // force-killed; tapping opens the app. Direct-FCM and relay paths mirror each other.
     private void DeliverRequestPush(
         Guid userId, string title, string body, string route, string requestId,
         List<DeviceRegistration> liveDevices, bool hasServiceAccount)
@@ -357,16 +358,8 @@ public class SeerrWebhookService
 
                 if (androidTokens.Count > 0)
                 {
-                    var data = new Dictionary<string, string>
-                    {
-                        ["requestId"] = requestId,
-                        ["kind"] = "request",
-                        ["title"] = title,
-                        ["body"] = body,
-                        ["route"] = route
-                    };
-                    var dead = await _relaySender.SendAsync(
-                        androidTokens, title, body, route, data, dataOnly: true);
+                    // Normal notification+data{route}, so a killed app still shows it.
+                    var dead = await _relaySender.SendAsync(androidTokens, title, body, route);
                     pruned += PruneDead(userId, dead);
                 }
 

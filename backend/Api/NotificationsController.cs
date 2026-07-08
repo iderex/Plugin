@@ -122,12 +122,14 @@ public class NotificationsController : ControllerBase
     [HttpGet("WebhookInfo")]
     [Authorize(Policy = "RequiresElevation")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult WebhookInfo()
+    public async Task<IActionResult> WebhookInfo()
     {
         var config = MoonfinPlugin.Instance?.Configuration;
         var secret = config?.SeerrWebhookSecret ?? string.Empty;
         var baseUrl = ResolvePublicBaseUrl(config?.PublicServerUrl);
         var url = $"{baseUrl}/Moonfin/Seerr/Webhook?secret={Uri.EscapeDataString(secret)}";
+
+        var currentTypes = await _provisioning.GetLiveWebhookTypesAsync(HttpContext.RequestAborted);
 
         return Ok(new
         {
@@ -136,7 +138,25 @@ public class NotificationsController : ControllerBase
             secretHeader = WebhookSecretHeader,
             notificationTypes = new[] { "MEDIA_PENDING", "MEDIA_APPROVED", "MEDIA_AVAILABLE", "MEDIA_DECLINED" },
             status = _provisioning.LastStatus.ToString(),
-            likelyUnreachable = _provisioning.LastResolvedUrlLikelyUnreachable
+            likelyUnreachable = _provisioning.LastResolvedUrlLikelyUnreachable,
+            currentTypes,
+            expectedTypes = SeerrProvisioningService.TargetTypes
+        });
+    }
+
+    /// <summary>
+    /// Clears the provisioning throttle and re-registers Moonfin's webhook in Seerr immediately.
+    /// </summary>
+    [HttpPost("Reprovision")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Reprovision()
+    {
+        var result = await _provisioning.ForceReprovisionAsync(HttpContext.RequestAborted);
+        return Ok(new
+        {
+            status = result.Status.ToString(),
+            message = result.Message
         });
     }
 

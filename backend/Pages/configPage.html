@@ -444,6 +444,10 @@
                                 <code>http://192.168.1.10:8096</code> or <code>https://jellyfin.example.com</code>.
                                 <br /><br />
                                 <span id="WebhookProvisioningStatus" style="color: rgba(255,255,255,0.6);"></span>
+                                <br />
+                                <button is="emby-button" type="button" id="ReprovisionWebhookBtn" class="raised" style="margin-top: 8px;">
+                                    Re-provision webhook
+                                </button>
                             </div>
                         </div>
                         <div class="inputContainer">
@@ -2605,6 +2609,14 @@
                     });
                 }
 
+                var reprovisionButton = document.querySelector('#ReprovisionWebhookBtn');
+                if (reprovisionButton && !reprovisionButton.dataset.bound) {
+                    reprovisionButton.dataset.bound = 'true';
+                    reprovisionButton.addEventListener('click', function() {
+                        reprovisionWebhook();
+                    });
+                }
+
                 if (themesListContainer && !themesListContainer.dataset.bound) {
                     themesListContainer.dataset.bound = 'true';
                     themesListContainer.addEventListener('click', function(event) {
@@ -2939,6 +2951,12 @@
                     }).then(function(info) {
                         var status = info && info.status ? info.status : 'Unknown';
                         var msg = 'Webhook provisioning status: ' + status + '.';
+                        if (info && typeof info.currentTypes === 'number') {
+                            msg += ' Current event types in Seerr: ' + info.currentTypes
+                                + ' (78 = all four request events).';
+                        } else if (info && info.currentTypes === null) {
+                            msg += ' Current event types in Seerr could not be read.';
+                        }
                         if (info && info.likelyUnreachable) {
                             msg += ' The server could only find a loopback address, which Seerr likely cannot reach.'
                                 + ' Set the Public Server URL above.';
@@ -2946,6 +2964,29 @@
                         note.textContent = msg;
                     }).catch(function() {
                         note.textContent = '';
+                    });
+                }
+
+                function reprovisionWebhook() {
+                    var btn = document.querySelector('#ReprovisionWebhookBtn');
+                    var note = document.querySelector('#WebhookProvisioningStatus');
+                    if (btn) {
+                        btn.disabled = true;
+                    }
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('Moonfin/Notifications/Reprovision'),
+                        dataType: 'json'
+                    }).then(function() {
+                        loadWebhookProvisioningStatus();
+                    }).catch(function() {
+                        if (note) {
+                            note.textContent = 'Re-provisioning failed.';
+                        }
+                    }).then(function() {
+                        if (btn) {
+                            btn.disabled = false;
+                        }
                     });
                 }
 

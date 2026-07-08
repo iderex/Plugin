@@ -92,14 +92,15 @@ public class FcmSender
         }
         else if (isRequest)
         {
-            // Android request (also the fallback for unknown platforms): data-only so the client
-            // builds the notification itself with action buttons.
+            // Android request (also the fallback for unknown platforms): a normal notification so
+            // the OS renders it even when the app is force-killed; tapping opens the app.
             payload = new
             {
                 message = new
                 {
                     token = deviceToken,
-                    data = new { title, body, route, requestId = requestId!, kind = "request" },
+                    notification = new { title, body },
+                    data = new { route },
                     android = new { priority = "high" }
                 }
             };
