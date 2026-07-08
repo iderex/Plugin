@@ -17,6 +17,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<MoonfinThemeValidator>();
         serviceCollection.AddSingleton<MoonfinThemeStore>();
         serviceCollection.AddSingleton<SeerrSessionService>();
+        serviceCollection.AddSingleton<NotificationStore>();
+        serviceCollection.AddSingleton<FcmSender>();
+        serviceCollection.AddSingleton<RelaySender>();
+        serviceCollection.AddSingleton<SeerrWebhookService>();
+        serviceCollection.AddSingleton<SeerrProvisioningService>();
         serviceCollection.AddSingleton<MdbListCacheService>();
         serviceCollection.AddSingleton<MdbListListsCacheService>();
         serviceCollection.AddSingleton<CustomRowCacheService>();
@@ -29,5 +34,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         // Auto-register file transformations on plugin load (no manual task needed)
         serviceCollection.AddHostedService<FileTransformationHostedService>();
+
+        // Auto-register the Seerr webhook shortly after startup when an admin session exists.
+        serviceCollection.AddHostedService<SeerrProvisioningStartupService>();
     }
 }

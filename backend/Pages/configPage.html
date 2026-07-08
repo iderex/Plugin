@@ -433,6 +433,40 @@
                                 The icon is always auto-detected regardless of this setting.
                             </div>
                         </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="PushRelayUrl">Push Relay URL (Optional)</label>
+                            <input type="text" id="PushRelayUrl" is="emby-input" placeholder="https://push.moonfin.io/send" />
+                            <div class="fieldDescription">
+                                Hosted relay that forwards push to backgrounded clients. Leave the default unless you run
+                                your own relay. Used only when no service account below is configured.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="PushRelayAppKey">Push Relay Key (Optional)</label>
+                            <input type="text" id="PushRelayAppKey" is="emby-input" placeholder="Leave blank to use the built-in key" />
+                            <div class="fieldDescription">
+                                Override the built-in relay key. Most self-hosters leave this blank. This is a secret and is
+                                never logged.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="FcmServiceAccountJson">Push Service Account (Optional)</label>
+                            <textarea id="FcmServiceAccountJson" is="emby-textarea" rows="4" placeholder='Paste the Firebase service-account JSON here'></textarea>
+                            <div class="fieldDescription">
+                                Paste the Firebase service-account JSON to enable push notifications so backgrounded or
+                                closed mobile clients still receive request updates. Generate it in the Firebase console under
+                                Project Settings &rarr; Service accounts. This is a secret and is stored in the plugin config.
+                                Leave blank to disable push.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="FcmServiceAccountPath">Push Service Account File Path (Optional)</label>
+                            <input type="text" id="FcmServiceAccountPath" is="emby-input" placeholder="/config/moonfin/service-account.json" />
+                            <div class="fieldDescription">
+                                Optional path to the service-account JSON file on the server. When set, it takes priority
+                                over the pasted JSON above.
+                            </div>
+                        </div>
                         <div style="background-color: rgba(0, 164, 220, 0.1); border-left: 4px solid #00a4dc; border-radius: 4px; padding: 1em 1.5em; margin: 1em 0;">
                             <strong>SSO Proxy:</strong> When Seerr is enabled, Moonfin provides single sign-on.
                             Users authenticate once with their Jellyfin credentials, and the session is stored server-side.
@@ -2581,6 +2615,10 @@
                     document.querySelector('#SeerrEnabled').checked = config.SeerrEnabled;
                     document.querySelector('#SeerrUrl').value = config.SeerrUrl || '';
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
+                    document.querySelector('#PushRelayUrl').value = config.PushRelayUrl || '';
+                    document.querySelector('#PushRelayAppKey').value = config.PushRelayAppKey || '';
+                    document.querySelector('#FcmServiceAccountJson').value = config.FcmServiceAccountJson || '';
+                    document.querySelector('#FcmServiceAccountPath').value = config.FcmServiceAccountPath || '';
                     document.querySelector('#MdblistApiKey').value = config.MdblistApiKey || '';
                     document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                     document.querySelector('#WebDefaultServerUrl').value = config.WebDefaultServerUrl || '';
@@ -2879,6 +2917,10 @@
                         config.SeerrEnabled = document.querySelector('#SeerrEnabled').checked;
                         config.SeerrUrl = document.querySelector('#SeerrUrl').value || null;
                         config.SeerrDisplayName = document.querySelector('#SeerrDisplayName').value || null;
+                        config.PushRelayUrl = document.querySelector('#PushRelayUrl').value || 'https://push.moonfin.io/send';
+                        config.PushRelayAppKey = document.querySelector('#PushRelayAppKey').value || null;
+                        config.FcmServiceAccountJson = document.querySelector('#FcmServiceAccountJson').value || null;
+                        config.FcmServiceAccountPath = document.querySelector('#FcmServiceAccountPath').value || null;
                         config.MdblistApiKey = document.querySelector('#MdblistApiKey').value || null;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value || null;
                         config.WebDefaultServerUrl = document.querySelector('#WebDefaultServerUrl').value || null;

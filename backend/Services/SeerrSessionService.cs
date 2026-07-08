@@ -617,6 +617,181 @@ public class SeerrSessionService
         }
     }
 
+    /// <summary>
+    /// Enumerates all stored Seerr sessions.
+    /// </summary>
+    public IEnumerable<SeerrSession> EnumerateSessions()
+    {
+        if (!Directory.Exists(_sessionsPath))
+        {
+            yield break;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(_sessionsPath, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            SeerrSession? session = null;
+            try
+            {
+                var json = File.ReadAllText(path);
+                session = JsonSerializer.Deserialize<SeerrSession>(json, _jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read Seerr session file {Path}", path);
+            }
+
+            if (session != null)
+            {
+                yield return session;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maps a Seerr internal user ID back to the Jellyfin user ID that owns that session.
+    /// </summary>
+    public Guid? GetJellyfinUserForSeerrUser(int seerrUserId)
+    {
+        foreach (var session in EnumerateSessions())
+        {
+            if (session.SeerrUserId == seerrUserId)
+            {
+                return session.JellyfinUserId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Maps a Seerr username back to the Jellyfin user ID that owns that session (case-insensitive).
+    /// </summary>
+    public Guid? GetJellyfinUserForSeerrUsername(string? username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return null;
+        }
+
+        foreach (var session in EnumerateSessions())
+        {
+            if (string.Equals(session.Username, username, StringComparison.OrdinalIgnoreCase))
+            {
+                return session.JellyfinUserId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Makes an authenticated request to Seerr using a specific stored session's cookie,
+    /// rather than resolving the session from a Jellyfin user ID. Used by server-side jobs
+    /// that already hold an admin session (e.g. webhook auto-provisioning).
+    /// </summary>
+    public async Task<SeerrProxyResponse> RequestWithSessionAsync(
+        SeerrSession session,
+        HttpMethod method,
+        string path,
+        byte[]? body = null,
+        string? contentType = null,
+        CancellationToken cancellationToken = default)
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var seerrUrl = config?.GetEffectiveSeerrUrl();
+
+        if (string.IsNullOrEmpty(seerrUrl))
+        {
+            return new SeerrProxyResponse
+            {
+                StatusCode = 503,
+                Body = JsonSerializer.SerializeToUtf8Bytes(new { error = "Seerr URL not configured" }),
+                ContentType = "application/json"
+            };
+        }
+
+        if (string.IsNullOrEmpty(session.SessionCookie))
+        {
+            return new SeerrProxyResponse
+            {
+                StatusCode = 401,
+                Body = JsonSerializer.SerializeToUtf8Bytes(new { error = "Session has no cookie", code = "NO_SESSION" }),
+                ContentType = "application/json"
+            };
+        }
+
+        try
+        {
+            var cookieContainer = new CookieContainer();
+            cookieContainer.Add(new Uri(seerrUrl), new Cookie("connect.sid", session.SessionCookie));
+
+            using var handler = new HttpClientHandler
+            {
+                CookieContainer = cookieContainer,
+                UseCookies = true,
+                AllowAutoRedirect = false
+            };
+            using var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(30);
+
+            var targetUrl = $"{seerrUrl}/api/v1/{path.TrimStart('/')}";
+            var request = new HttpRequestMessage(method, targetUrl);
+
+            if (method != HttpMethod.Get && method != HttpMethod.Head)
+            {
+                var csrfToken = await FetchCsrfTokenAsync(client, seerrUrl, cookieContainer);
+                var originValue = new Uri(seerrUrl).GetLeftPart(UriPartial.Authority);
+                request.Headers.TryAddWithoutValidation("Origin", originValue);
+                request.Headers.TryAddWithoutValidation("Referer", seerrUrl.TrimEnd('/') + "/");
+                if (!string.IsNullOrEmpty(csrfToken))
+                {
+                    request.Headers.TryAddWithoutValidation("X-XSRF-TOKEN", csrfToken);
+                    request.Headers.TryAddWithoutValidation("X-CSRF-Token", csrfToken);
+                }
+            }
+
+            if (body != null && body.Length > 0)
+            {
+                request.Content = new ByteArrayContent(body);
+                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    contentType ?? "application/json");
+            }
+
+            var response = await client.SendAsync(request, cancellationToken);
+
+            var responseBody = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var responseContentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+
+            var upstreamFailure = ClassifyUpstreamFailure(response, responseBody, responseContentType);
+            if (upstreamFailure != null)
+            {
+                return upstreamFailure;
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                await CheckForRotatedCookieAsync(session, response, cookieContainer, seerrUrl);
+            }
+
+            return new SeerrProxyResponse
+            {
+                StatusCode = (int)response.StatusCode,
+                Body = responseBody,
+                ContentType = responseContentType
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed authenticated Seerr request: {Path}", path);
+            return new SeerrProxyResponse
+            {
+                StatusCode = 502,
+                Body = JsonSerializer.SerializeToUtf8Bytes(new { error = $"Cannot reach Seerr: {ex.Message}" }),
+                ContentType = "application/json"
+            };
+        }
+    }
+
     private async Task SaveSessionAsync(SeerrSession session)
     {
         await _lock.WaitAsync();

@@ -18,11 +18,16 @@ namespace Moonfin.Server.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class SeerrProxyController : ControllerBase
 {
-    private readonly SeerrSessionService _sessionService;
+    private const int AdminBit = 2;
+    private const int OwnerSeerrUserId = 1;
 
-    public SeerrProxyController(SeerrSessionService sessionService)
+    private readonly SeerrSessionService _sessionService;
+    private readonly SeerrProvisioningService _provisioning;
+
+    public SeerrProxyController(SeerrSessionService sessionService, SeerrProvisioningService provisioning)
     {
         _sessionService = sessionService;
+        _provisioning = provisioning;
     }
 
     /// <summary>
@@ -70,6 +75,12 @@ public class SeerrProxyController : ControllerBase
                 error = result?.Error ?? "Authentication failed",
                 success = false
             });
+        }
+
+        // Once an admin session exists, auto-register our webhook best-effort (throttled internally).
+        if (result.SeerrUserId == OwnerSeerrUserId || (result.Permissions & AdminBit) != 0)
+        {
+            _ = _provisioning.EnsureWebhookAsync(default);
         }
 
         return Ok(new

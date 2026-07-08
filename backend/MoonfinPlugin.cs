@@ -28,7 +28,9 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         Instance = this;
         ServiceProvider = serviceProvider;
 
-        if (Configuration.MigrateLegacyKeys())
+        var changed = Configuration.MigrateLegacyKeys();
+        changed |= Configuration.EnsureWebhookSecret();
+        if (changed)
         {
             SaveConfiguration();
         }

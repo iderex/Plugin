@@ -317,17 +317,30 @@ public class MoonfinSettingsService
 
     public void NotifySettingsChanged(Guid userId)
     {
-        if (!_sseChannels.TryGetValue(userId, out var channels))
+        NotifyUser(userId, JsonSerializer.Serialize(new { type = "settingsUpdated" }));
+    }
+
+    /// <summary>
+    /// Writes a raw JSON payload to a single user's registered SSE channels.
+    /// Returns the number of channels the payload was written to.
+    /// </summary>
+    public int NotifyUser(Guid userId, string jsonPayload)
+    {
+        if (string.IsNullOrEmpty(jsonPayload) || !_sseChannels.TryGetValue(userId, out var channels))
         {
-            return;
+            return 0;
         }
 
-        var payload = JsonSerializer.Serialize(new { type = "settingsUpdated" });
-
+        var sent = 0;
         foreach (var channel in channels.Keys)
         {
-            channel.Writer.TryWrite(payload);
+            if (channel.Writer.TryWrite(jsonPayload))
+            {
+                sent++;
+            }
         }
+
+        return sent;
     }
 
     public int BroadcastMessage(string message)
