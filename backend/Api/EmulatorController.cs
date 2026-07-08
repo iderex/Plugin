@@ -48,7 +48,7 @@ public class EmulatorController : ControllerBase
     /// <summary>
     /// Serves the Moonfin EmulatorJS player shell (embedded resource). Anonymous: the shell
     /// is static and non-sensitive, and the WebView loads it as a plain document with no auth
-    /// header. The ROM/BIOS/save URLs it fetches carry an api_key and stay authorized.
+    /// header. The ROM/BIOS/save URLs it fetches carry an ApiKey query parameter and stay authorized.
     /// </summary>
     [HttpGet("player.html")]
     [AllowAnonymous]

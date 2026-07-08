@@ -103,7 +103,7 @@ public class GamesController : ControllerBase
 
     /// <summary>
     /// Streams a ROM file. EmulatorJS fetches this via XHR; clients append the Jellyfin
-    /// access token as an <c>api_key</c> query parameter so the WebView request authenticates.
+    /// access token as an <c>ApiKey</c> query parameter so the WebView request authenticates.
     /// </summary>
     [HttpGet("{libraryId}/Rom/{token}")]
     [Authorize]
