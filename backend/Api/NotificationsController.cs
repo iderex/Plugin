@@ -134,8 +134,9 @@ public class NotificationsController : ControllerBase
             url,
             secret,
             secretHeader = WebhookSecretHeader,
-            notificationTypes = new[] { "MEDIA_PENDING", "MEDIA_AVAILABLE" },
-            status = _provisioning.LastStatus.ToString()
+            notificationTypes = new[] { "MEDIA_PENDING", "MEDIA_APPROVED", "MEDIA_AVAILABLE", "MEDIA_DECLINED" },
+            status = _provisioning.LastStatus.ToString(),
+            likelyUnreachable = _provisioning.LastResolvedUrlLikelyUnreachable
         });
     }
 

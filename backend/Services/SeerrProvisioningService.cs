@@ -1,6 +1,9 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
+using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Moonfin.Server.Services;
@@ -16,8 +19,8 @@ public class SeerrProvisioningService
     private const int AdminBit = 2;
     private const int OwnerSeerrUserId = 1;
 
-    // MEDIA_PENDING (2) | MEDIA_AVAILABLE (8).
-    private const int TargetTypes = 10;
+    // MEDIA_PENDING (2) | MEDIA_APPROVED (4) | MEDIA_AVAILABLE (8) | MEDIA_DECLINED (64).
+    private const int TargetTypes = 78;
 
     private const string WebhookPath = "/Moonfin/Seerr/Webhook";
     private const string SettingsPath = "settings/notifications/webhook";
@@ -45,6 +48,8 @@ public class SeerrProvisioningService
 
     private readonly SeerrSessionService _sessionService;
     private readonly IServerApplicationHost _appHost;
+    private readonly INetworkManager _networkManager;
+    private readonly IServerConfigurationManager _configManager;
     private readonly ILogger<SeerrProvisioningService> _logger;
 
     // Best-effort throttle so a busy login path doesn't hammer Seerr's settings API.
@@ -55,10 +60,14 @@ public class SeerrProvisioningService
     public SeerrProvisioningService(
         SeerrSessionService sessionService,
         IServerApplicationHost appHost,
+        INetworkManager networkManager,
+        IServerConfigurationManager configManager,
         ILogger<SeerrProvisioningService> logger)
     {
         _sessionService = sessionService;
         _appHost = appHost;
+        _networkManager = networkManager;
+        _configManager = configManager;
         _logger = logger;
     }
 
@@ -238,20 +247,58 @@ public class SeerrProvisioningService
     private static bool IsAdmin(SeerrSession session) =>
         session.SeerrUserId == OwnerSeerrUserId || (session.Permissions & AdminBit) != 0;
 
-    // PublicServerUrl wins; otherwise ask Jellyfin for its own address. GetSmartApiUrl
-    // returns the configured published-server URL when set, else a loopback-derived one.
+    /// <summary>
+    /// True when the last resolved base URL was a loopback fallback, which a containerized
+    /// Seerr almost certainly cannot reach. Surfaced by WebhookInfo so admins set PublicServerUrl.
+    /// </summary>
+    public bool LastResolvedUrlLikelyUnreachable { get; private set; }
+
+    // Resolves a base URL Seerr can actually reach. A loopback URL is useless to a
+    // containerized Seerr, so we prefer, in order: the admin override, Jellyfin's
+    // published URL, a LAN IPv4, and only fall back to loopback as a flagged last resort.
     private string? ResolvePublicBaseUrl(string? configuredUrl)
     {
+        LastResolvedUrlLikelyUnreachable = false;
+
+        // (1) Admin-set public URL wins.
         if (!string.IsNullOrWhiteSpace(configuredUrl))
         {
             return configuredUrl.TrimEnd('/');
         }
 
+        // (2) Jellyfin's configured published server URL, when set.
+        var published = GetPublishedServerUrl();
+        if (!string.IsNullOrWhiteSpace(published) && !IsLoopbackUrl(published))
+        {
+            return published.TrimEnd('/');
+        }
+
+        // (3) First non-loopback LAN IPv4 address, resolved through the app host so any
+        // published-URI-by-subnet override and the right scheme/port are applied.
+        var lanAddress = GetLanIPv4Address();
+        if (lanAddress != null)
+        {
+            try
+            {
+                var url = _appHost.GetSmartApiUrl(lanAddress);
+                if (!string.IsNullOrWhiteSpace(url) && !IsLoopbackUrl(url))
+                {
+                    return url.TrimEnd('/');
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not resolve a LAN API URL");
+            }
+        }
+
+        // (4) Loopback, last resort. Flag it so WebhookInfo tells the admin to set PublicServerUrl.
         try
         {
             var url = _appHost.GetSmartApiUrl(IPAddress.Loopback);
             if (!string.IsNullOrWhiteSpace(url))
             {
+                LastResolvedUrlLikelyUnreachable = true;
                 return url.TrimEnd('/');
             }
         }
@@ -261,6 +308,70 @@ public class SeerrProvisioningService
         }
 
         return null;
+    }
+
+    // Reads Jellyfin's network config for a configured published server URL. There is no single
+    // field for it; the closest is a per-subnet published-URI mapping, so we take its first entry.
+    private string? GetPublishedServerUrl()
+    {
+        try
+        {
+            var net = _configManager.GetNetworkConfiguration();
+            var mapping = net.PublishedServerUriBySubnet;
+            if (mapping == null)
+            {
+                return null;
+            }
+
+            foreach (var entry in mapping)
+            {
+                // Entries are "<subnet>=<url>"; take the URL part when it looks absolute.
+                var idx = entry.IndexOf('=');
+                var candidate = idx >= 0 ? entry[(idx + 1)..].Trim() : entry.Trim();
+                if (candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the published server URL");
+        }
+
+        return null;
+    }
+
+    // Finds the first non-loopback IPv4 address among Jellyfin's internal bind addresses.
+    private IPAddress? GetLanIPv4Address()
+    {
+        try
+        {
+            foreach (var data in _networkManager.GetInternalBindAddresses())
+            {
+                var addr = data.Address;
+                if (addr != null &&
+                    addr.AddressFamily == AddressFamily.InterNetwork &&
+                    !IPAddress.IsLoopback(addr))
+                {
+                    return addr;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not enumerate LAN bind addresses");
+        }
+
+        return null;
+    }
+
+    private static bool IsLoopbackUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+            (uri.IsLoopback ||
+             string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase));
     }
 }
 

@@ -4,6 +4,8 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.DependencyInjection;
+using Moonfin.Server.Services;
 
 namespace Moonfin.Server;
 
@@ -46,6 +48,26 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override Guid Id => Guid.Parse("8c5d0e91-4f2a-4b6d-9e3f-1a7c8d9e0f2b");
 
     public new string DataFolderPath => Path.Combine(ApplicationPaths.PluginConfigurationsPath, "Moonfin");
+
+    /// <inheritdoc />
+    public override void UpdateConfiguration(BasePluginConfiguration configuration)
+    {
+        var previousUrl = Configuration.PublicServerUrl;
+        base.UpdateConfiguration(configuration);
+
+        // Re-provision the Seerr webhook when the public URL changes, so the new URL is
+        // pushed to Seerr without waiting for a restart. The provisioning guardrail only
+        // overwrites our own webhook.
+        var newUrl = Configuration.PublicServerUrl;
+        if (!string.Equals(previousUrl, newUrl, StringComparison.Ordinal))
+        {
+            var provisioning = ServiceProvider?.GetService<SeerrProvisioningService>();
+            if (provisioning != null)
+            {
+                _ = provisioning.EnsureWebhookAsync(default);
+            }
+        }
+    }
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()

@@ -31,6 +31,9 @@ public class RelaySender
         string title,
         string body,
         string route,
+        IReadOnlyDictionary<string, string>? data = null,
+        string? apnsCategory = null,
+        bool dataOnly = false,
         CancellationToken cancellationToken = default)
     {
         var empty = Array.Empty<PushResult>();
@@ -48,13 +51,28 @@ public class RelaySender
             return empty;
         }
 
-        var payload = new
+        // Only the base fields when no request extras are set, so old behavior is byte-identical.
+        var payload = new Dictionary<string, object>
         {
-            tokens,
-            title,
-            body,
-            route
+            ["tokens"] = tokens,
+            ["title"] = title,
+            ["body"] = body,
+            ["route"] = route
         };
+        if (data != null)
+        {
+            payload["data"] = data;
+        }
+
+        if (!string.IsNullOrEmpty(apnsCategory))
+        {
+            payload["apnsCategory"] = apnsCategory!;
+        }
+
+        if (dataOnly)
+        {
+            payload["dataOnly"] = true;
+        }
 
         try
         {

@@ -434,6 +434,19 @@
                             </div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="PublicServerUrl">Public Server URL (Optional)</label>
+                            <input type="url" id="PublicServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
+                            <div class="fieldDescription">
+                                <strong>The address Seerr uses to reach this Jellyfin server</strong> for request
+                                notifications (the webhook Seerr calls back). Set this when Seerr and Jellyfin run in
+                                separate containers or hosts, since the server otherwise can only guess a local address
+                                that Seerr may not be able to reach. Use the base URL, for example
+                                <code>http://192.168.1.10:8096</code> or <code>https://jellyfin.example.com</code>.
+                                <br /><br />
+                                <span id="WebhookProvisioningStatus" style="color: rgba(255,255,255,0.6);"></span>
+                            </div>
+                        </div>
+                        <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PushRelayUrl">Push Relay URL (Optional)</label>
                             <input type="text" id="PushRelayUrl" is="emby-input" placeholder="https://push.moonfin.io/send" />
                             <div class="fieldDescription">
@@ -2615,6 +2628,8 @@
                     document.querySelector('#SeerrEnabled').checked = config.SeerrEnabled;
                     document.querySelector('#SeerrUrl').value = config.SeerrUrl || '';
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
+                    document.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
+                    loadWebhookProvisioningStatus();
                     document.querySelector('#PushRelayUrl').value = config.PushRelayUrl || '';
                     document.querySelector('#PushRelayAppKey').value = config.PushRelayAppKey || '';
                     document.querySelector('#FcmServiceAccountJson').value = config.FcmServiceAccountJson || '';
@@ -2911,12 +2926,36 @@
                         });
                 }
 
+                function loadWebhookProvisioningStatus() {
+                    var note = document.querySelector('#WebhookProvisioningStatus');
+                    if (!note) {
+                        return;
+                    }
+                    note.textContent = '';
+                    ApiClient.ajax({
+                        type: 'GET',
+                        url: ApiClient.getUrl('Moonfin/Notifications/WebhookInfo'),
+                        dataType: 'json'
+                    }).then(function(info) {
+                        var status = info && info.status ? info.status : 'Unknown';
+                        var msg = 'Webhook provisioning status: ' + status + '.';
+                        if (info && info.likelyUnreachable) {
+                            msg += ' The server could only find a loopback address, which Seerr likely cannot reach.'
+                                + ' Set the Public Server URL above.';
+                        }
+                        note.textContent = msg;
+                    }).catch(function() {
+                        note.textContent = '';
+                    });
+                }
+
                 function submit() {
                     return ApiClient.getPluginConfiguration(MoonfinConfig.pluginUniqueId).then(function(config) {
                         config.EnableSettingsSync = document.querySelector('#EnableSettingsSync').checked;
                         config.SeerrEnabled = document.querySelector('#SeerrEnabled').checked;
                         config.SeerrUrl = document.querySelector('#SeerrUrl').value || null;
                         config.SeerrDisplayName = document.querySelector('#SeerrDisplayName').value || null;
+                        config.PublicServerUrl = document.querySelector('#PublicServerUrl').value || null;
                         config.PushRelayUrl = document.querySelector('#PushRelayUrl').value || 'https://push.moonfin.io/send';
                         config.PushRelayAppKey = document.querySelector('#PushRelayAppKey').value || null;
                         config.FcmServiceAccountJson = document.querySelector('#FcmServiceAccountJson').value || null;

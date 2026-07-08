@@ -57,10 +57,18 @@ public class SeerrWebhookService
                 return;
             }
 
+            _logger.LogInformation("Seerr webhook received: {Type}", notificationType);
+
             switch (notificationType.ToUpperInvariant())
             {
                 case "MEDIA_PENDING":
                     await HandlePendingAsync(payload);
+                    break;
+                case "MEDIA_APPROVED":
+                    await HandleRequesterDecisionAsync(payload, "MEDIA_APPROVED", "Request approved", "approved");
+                    break;
+                case "MEDIA_DECLINED":
+                    await HandleRequesterDecisionAsync(payload, "MEDIA_DECLINED", "Request declined", "declined");
                     break;
                 case "MEDIA_AVAILABLE":
                     await HandleAvailableAsync(payload);
@@ -83,6 +91,7 @@ public class SeerrWebhookService
         var (tmdbId, _, mediaType) = GetMedia(payload);
         if (string.IsNullOrEmpty(tmdbId))
         {
+            _logger.LogWarning("Seerr webhook dropped: no tmdbId (type MEDIA_PENDING)");
             return Task.CompletedTask;
         }
 
@@ -91,6 +100,7 @@ public class SeerrWebhookService
         var body = $"{requester ?? "Someone"} requested {subject}";
 
         var requesterJellyfinId = GetRequesterJellyfinId(payload);
+        var requestId = GetRequestId(payload);
 
         foreach (var userId in _store.GetUsersWantingNewRequests())
         {
@@ -106,7 +116,7 @@ public class SeerrWebhookService
                 continue;
             }
 
-            Deliver(userId, tmdbId, "MEDIA_PENDING", title, body, route);
+            Deliver(userId, tmdbId, "MEDIA_PENDING", title, body, route, requestId);
         }
 
         return Task.CompletedTask;
@@ -116,6 +126,11 @@ public class SeerrWebhookService
     {
         var subject = GetString(payload, "subject") ?? "Your request";
         var (tmdbId, tvdbId, mediaType) = GetMedia(payload);
+        if (string.IsNullOrEmpty(tmdbId) && string.IsNullOrEmpty(tvdbId))
+        {
+            _logger.LogWarning("Seerr webhook dropped: no tmdbId (type MEDIA_AVAILABLE)");
+            return Task.CompletedTask;
+        }
 
         var targetUserId = GetRequesterJellyfinId(payload);
         if (targetUserId == null)
@@ -143,7 +158,37 @@ public class SeerrWebhookService
         return Task.CompletedTask;
     }
 
-    private void Deliver(Guid userId, string mediaKey, string notificationType, string title, string body, string route)
+    // Approved/declined both notify the original requester, gated by their library-added pref.
+    private Task HandleRequesterDecisionAsync(JsonElement payload, string notificationType, string title, string verb)
+    {
+        var subject = GetString(payload, "subject") ?? "Your request";
+        var (tmdbId, tvdbId, mediaType) = GetMedia(payload);
+        if (string.IsNullOrEmpty(tmdbId) && string.IsNullOrEmpty(tvdbId))
+        {
+            _logger.LogWarning("Seerr webhook dropped: no tmdbId (type {Type})", notificationType);
+            return Task.CompletedTask;
+        }
+
+        var targetUserId = GetRequesterJellyfinId(payload);
+        if (targetUserId == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var prefs = _store.GetPrefs(targetUserId.Value);
+        if (!prefs.NotifyOnLibraryAdded)
+        {
+            return Task.CompletedTask;
+        }
+
+        var route = $"/seerr/media/{tmdbId}?mediaType={NormalizeMediaType(mediaType)}";
+        var body = $"{subject} was {verb}";
+
+        Deliver(targetUserId.Value, tmdbId ?? tvdbId ?? subject, notificationType, title, body, route);
+        return Task.CompletedTask;
+    }
+
+    private void Deliver(Guid userId, string mediaKey, string notificationType, string title, string body, string route, string? requestId = null)
     {
         var dedupeKey = $"{userId}:{mediaKey}:{notificationType}";
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -156,44 +201,65 @@ public class SeerrWebhookService
         _recent[dedupeKey] = now;
         PruneRecent(now);
 
-        var json = JsonSerializer.Serialize(new
-        {
-            type = "seerrNotification",
-            title,
-            body,
-            route
-        });
+        // A request notification carries the id and a kind marker so the client can show
+        // Approve/Deny; other events keep the plain shape.
+        var json = requestId != null
+            ? JsonSerializer.Serialize(new
+            {
+                type = "seerrNotification",
+                title,
+                body,
+                route,
+                requestId,
+                kind = "request"
+            })
+            : JsonSerializer.Serialize(new
+            {
+                type = "seerrNotification",
+                title,
+                body,
+                route
+            });
 
         _settingsService.NotifyUser(userId, json);
-        DeliverPush(userId, title, body, route);
+        DeliverPush(userId, title, body, route, requestId);
     }
 
     // Sends the notification as push to every registered device for the user, so backgrounded or
     // closed clients still get it. Runs off the SSE path so a push failure never blocks or breaks
     // SSE delivery. The relay is the default (no service account needed); a self-hoster who
     // configures their own service account gets direct FCM instead. Dead tokens are pruned.
-    private void DeliverPush(Guid userId, string title, string body, string route)
+    private void DeliverPush(Guid userId, string title, string body, string route, string? requestId = null)
     {
         var config = MoonfinPlugin.Instance?.Configuration;
-        if (config == null || !config.PushEnabled)
+        var pushEnabled = config?.PushEnabled == true;
+        var devices = config == null ? new List<DeviceRegistration>() : _store.GetUserDevices(userId);
+
+        _logger.LogInformation("push: user {UserId} enabled={Enabled} devices={Count}",
+            userId, pushEnabled, devices.Count);
+
+        if (config == null || !pushEnabled || devices.Count == 0)
         {
             return;
         }
 
-        var devices = _store.GetUserDevices(userId);
-        if (devices.Count == 0)
-        {
-            return;
-        }
-
-        var tokens = devices
-            .Select(d => d.Token)
-            .Where(t => !string.IsNullOrWhiteSpace(t))
+        var liveDevices = devices
+            .Where(d => !string.IsNullOrWhiteSpace(d.Token))
             .ToList();
-        if (tokens.Count == 0)
+        if (liveDevices.Count == 0)
         {
             return;
         }
+
+        // A request notification must be shaped per platform so the buttons render on a closed app;
+        // other events keep the single-call path.
+        if (requestId != null)
+        {
+            DeliverRequestPush(userId, title, body, route, requestId, liveDevices, config.HasServiceAccount);
+            return;
+        }
+
+        var tokens = liveDevices.Select(d => d.Token).ToList();
 
         // A configured service account is an explicit self-hosted opt-in to direct FCM; otherwise
         // fall back to the hosted relay using the effective app key.
@@ -201,6 +267,7 @@ public class SeerrWebhookService
         {
             _ = Task.Run(async () =>
             {
+                var pruned = 0;
                 foreach (var token in tokens)
                 {
                     try
@@ -209,6 +276,7 @@ public class SeerrWebhookService
                         if (result == FcmSendResult.TokenDead)
                         {
                             _store.RemoveDeviceByToken(userId, token);
+                            pruned++;
                         }
                     }
                     catch (Exception ex)
@@ -216,6 +284,8 @@ public class SeerrWebhookService
                         _logger.LogDebug(ex, "Push delivery failed for user {UserId}", userId);
                     }
                 }
+
+                _logger.LogInformation("push: user {UserId} pruned {Count} dead tokens", userId, pruned);
             });
             return;
         }
@@ -225,16 +295,120 @@ public class SeerrWebhookService
             try
             {
                 var dead = await _relaySender.SendAsync(tokens, title, body, route);
-                foreach (var result in dead)
-                {
-                    _store.RemoveDeviceByToken(userId, result.Token);
-                }
+                var pruned = PruneDead(userId, dead);
+                _logger.LogInformation("push: user {UserId} pruned {Count} dead tokens", userId, pruned);
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Relay push delivery failed for user {UserId}", userId);
             }
         });
+    }
+
+    // Splits the user's devices into iOS vs everything-else ("android") and shapes each group so a
+    // closed app can render Approve/Deny. iOS gets a data + apnsCategory push; Android gets a
+    // data-only push carrying the display fields. Direct-FCM and relay paths mirror each other.
+    private void DeliverRequestPush(
+        Guid userId, string title, string body, string route, string requestId,
+        List<DeviceRegistration> liveDevices, bool hasServiceAccount)
+    {
+        static bool IsIos(DeviceRegistration d) =>
+            string.Equals(d.Platform, "ios", StringComparison.OrdinalIgnoreCase);
+
+        var iosTokens = liveDevices.Where(IsIos).Select(d => d.Token).ToList();
+        var androidTokens = liveDevices.Where(d => !IsIos(d)).Select(d => d.Token).ToList();
+
+        if (hasServiceAccount)
+        {
+            _ = Task.Run(async () =>
+            {
+                var pruned = 0;
+                foreach (var token in iosTokens)
+                {
+                    pruned += await SendFcmRequestAsync(userId, token, title, body, route, requestId, "ios");
+                }
+
+                foreach (var token in androidTokens)
+                {
+                    pruned += await SendFcmRequestAsync(userId, token, title, body, route, requestId, "android");
+                }
+
+                _logger.LogInformation("push: user {UserId} pruned {Count} dead tokens", userId, pruned);
+            });
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var pruned = 0;
+            try
+            {
+                if (iosTokens.Count > 0)
+                {
+                    var data = new Dictionary<string, string>
+                    {
+                        ["requestId"] = requestId,
+                        ["kind"] = "request"
+                    };
+                    var dead = await _relaySender.SendAsync(
+                        iosTokens, title, body, route, data, apnsCategory: "seerr_request");
+                    pruned += PruneDead(userId, dead);
+                }
+
+                if (androidTokens.Count > 0)
+                {
+                    var data = new Dictionary<string, string>
+                    {
+                        ["requestId"] = requestId,
+                        ["kind"] = "request",
+                        ["title"] = title,
+                        ["body"] = body,
+                        ["route"] = route
+                    };
+                    var dead = await _relaySender.SendAsync(
+                        androidTokens, title, body, route, data, dataOnly: true);
+                    pruned += PruneDead(userId, dead);
+                }
+
+                _logger.LogInformation("push: user {UserId} pruned {Count} dead tokens", userId, pruned);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Relay push delivery failed for user {UserId}", userId);
+            }
+        });
+    }
+
+    private async Task<int> SendFcmRequestAsync(
+        Guid userId, string token, string title, string body, string route, string requestId, string platform)
+    {
+        try
+        {
+            var result = await _fcmSender.SendAsync(token, title, body, route, requestId, platform);
+            if (result == FcmSendResult.TokenDead)
+            {
+                _store.RemoveDeviceByToken(userId, token);
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Push delivery failed for user {UserId}", userId);
+        }
+
+        return 0;
+    }
+
+    private int PruneDead(Guid userId, IReadOnlyList<PushResult> dead)
+    {
+        var pruned = 0;
+        foreach (var result in dead)
+        {
+            _store.RemoveDeviceByToken(userId, result.Token);
+            pruned++;
+        }
+
+        return pruned;
     }
 
     private void PruneRecent(long now)
@@ -359,6 +533,18 @@ public class SeerrWebhookService
         }
 
         return GetString(payload, "notifyuser_username");
+    }
+
+    // The Seerr request id lives at request.request_id and may arrive as a number or a string.
+    private static string? GetRequestId(JsonElement payload)
+    {
+        if (payload.TryGetProperty("request", out var request) &&
+            request.ValueKind == JsonValueKind.Object)
+        {
+            return GetString(request, "request_id");
+        }
+
+        return null;
     }
 
     private static (string? TmdbId, string? TvdbId, string? MediaType) GetMedia(JsonElement payload)

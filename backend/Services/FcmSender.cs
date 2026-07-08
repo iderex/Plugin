@@ -40,6 +40,8 @@ public class FcmSender
         string title,
         string body,
         string route,
+        string? requestId = null,
+        string? platform = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(deviceToken))
@@ -64,21 +66,62 @@ public class FcmSender
             return FcmSendResult.Failed;
         }
 
-        var payload = new
+        object payload;
+        var isRequest = !string.IsNullOrEmpty(requestId);
+        var isIos = string.Equals(platform, "ios", StringComparison.OrdinalIgnoreCase);
+
+        if (isRequest && isIos)
         {
-            message = new
+            // iOS request: keep the notification so it shows closed, plus data + category so the
+            // client can attach Approve/Deny actions.
+            payload = new
             {
-                token = deviceToken,
-                notification = new { title, body },
-                data = new { route },
-                android = new { priority = "high" },
-                apns = new
+                message = new
                 {
-                    headers = new Dictionary<string, string> { ["apns-priority"] = "10" },
-                    payload = new { aps = new { sound = "default" } }
+                    token = deviceToken,
+                    notification = new { title, body },
+                    data = new { route, requestId = requestId!, kind = "request" },
+                    android = new { priority = "high" },
+                    apns = new
+                    {
+                        headers = new Dictionary<string, string> { ["apns-priority"] = "10" },
+                        payload = new { aps = new { sound = "default", category = "seerr_request" } }
+                    }
                 }
-            }
-        };
+            };
+        }
+        else if (isRequest)
+        {
+            // Android request (also the fallback for unknown platforms): data-only so the client
+            // builds the notification itself with action buttons.
+            payload = new
+            {
+                message = new
+                {
+                    token = deviceToken,
+                    data = new { title, body, route, requestId = requestId!, kind = "request" },
+                    android = new { priority = "high" }
+                }
+            };
+        }
+        else
+        {
+            payload = new
+            {
+                message = new
+                {
+                    token = deviceToken,
+                    notification = new { title, body },
+                    data = new { route },
+                    android = new { priority = "high" },
+                    apns = new
+                    {
+                        headers = new Dictionary<string, string> { ["apns-priority"] = "10" },
+                        payload = new { aps = new { sound = "default" } }
+                    }
+                }
+            };
+        }
 
         var url = $"https://fcm.googleapis.com/v1/projects/{account.ProjectId}/messages:send";
 
