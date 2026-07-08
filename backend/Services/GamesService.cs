@@ -119,6 +119,19 @@ public class GamesService
     private static readonly HashSet<string> BiosExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".bin", ".bios", ".rom", ".img", ".sys", ".bs" };
 
+    // Compressed single-ROM archives. The core is resolved from the system folder name, so these
+    // need no extension->core mapping; EmulatorJS decompresses them on the client. Multi-file sets
+    // (disc bin/cue) inside an archive are not supported.
+    private static readonly HashSet<string> ArchiveExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".zip", ".7z" };
+
+    // A file the scanner treats as a playable ROM: a known ROM extension or a supported archive.
+    private static bool IsRomFile(string path)
+    {
+        var ext = Path.GetExtension(path);
+        return ExtensionToCore.ContainsKey(ext) || ArchiveExtensions.Contains(ext);
+    }
+
     public GamesService(
         ILibraryManager libraryManager,
         RdbService? rdb = null,
@@ -403,8 +416,7 @@ public class GamesService
             return null;
         }
 
-        var ext = Path.GetExtension(path);
-        var isRom = ExtensionToCore.ContainsKey(ext) || BiosExtensions.Contains(ext);
+        var isRom = IsRomFile(path) || BiosExtensions.Contains(Path.GetExtension(path));
         if (!isRom && !allowBios)
         {
             return null;
@@ -422,8 +434,7 @@ public class GamesService
         // One folder per game: pick the first recognized ROM inside each subfolder.
         foreach (var gameDir in SafeEnumerateDirectories(systemDir))
         {
-            var rom = SafeEnumerateFiles(gameDir)
-                .FirstOrDefault(f => ExtensionToCore.ContainsKey(Path.GetExtension(f)));
+            var rom = SafeEnumerateFiles(gameDir).FirstOrDefault(IsRomFile);
             if (rom != null)
             {
                 roms.Add(rom);
@@ -433,7 +444,7 @@ public class GamesService
         // Also accept loose ROMs sitting directly in the system folder.
         foreach (var file in SafeEnumerateFiles(systemDir))
         {
-            if (ExtensionToCore.ContainsKey(Path.GetExtension(file)))
+            if (IsRomFile(file))
             {
                 roms.Add(file);
             }
@@ -449,7 +460,7 @@ public class GamesService
         foreach (var file in SafeEnumerateFiles(systemDir))
         {
             var ext = Path.GetExtension(file);
-            if (ExtensionToCore.ContainsKey(ext))
+            if (IsRomFile(file))
             {
                 continue;
             }
