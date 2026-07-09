@@ -24,6 +24,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<SeerrProvisioningService>();
         serviceCollection.AddSingleton<MdbListCacheService>();
         serviceCollection.AddSingleton<MdbListListsCacheService>();
+        serviceCollection.AddSingleton<StudioLogoCacheService>();
+        serviceCollection.AddSingleton<StudioLogoFetchService>();
         serviceCollection.AddSingleton<CustomRowCacheService>();
         serviceCollection.AddSingleton<GamesService>();
         serviceCollection.AddSingleton<GameSavesService>();

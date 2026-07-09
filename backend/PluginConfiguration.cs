@@ -74,6 +74,17 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MdblistOfficialListsMaxItems { get; set; } = 250;
 
     /// <summary>
+    /// Fetch and cache TMDB studio (production company) logos on a schedule so clients
+    /// can show them on the details screen. Uses the server-wide TMDB key above.
+    /// </summary>
+    public bool StudioLogosEnabled { get; set; } = true;
+
+    /// <summary>
+    /// How long a cached studio-logo entry stays fresh before the sync task refetches it.
+    /// </summary>
+    public int StudioLogosMaxAgeDays { get; set; } = 30;
+
+    /// <summary>
     /// Optional default server URL shown in the Moonfin web Add Server dialog.
     /// </summary>
     public string? WebDefaultServerUrl { get; set; }

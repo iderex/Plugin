@@ -20,6 +20,8 @@ public class TmdbController : ControllerBase
 {
     private readonly MoonfinSettingsService _settingsService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly StudioLogoCacheService _studioCache;
+    private readonly StudioLogoFetchService _studioFetch;
 
     // Cache: key = "tmdbId:season" => (response, timestamp)
     private static readonly ConcurrentDictionary<string, (TmdbSeasonRatingsResponse Response, DateTimeOffset CachedAt)> _seasonCache = new();
@@ -27,10 +29,19 @@ public class TmdbController : ControllerBase
     private static readonly ConcurrentDictionary<string, (TmdbEpisodeRatingResponse Response, DateTimeOffset CachedAt)> _episodeCache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
-    public TmdbController(MoonfinSettingsService settingsService, IHttpClientFactory httpClientFactory)
+    private static TimeSpan StudioCacheMaxAge =>
+        TimeSpan.FromDays(MoonfinPlugin.Instance?.Configuration?.StudioLogosMaxAgeDays ?? 30);
+
+    public TmdbController(
+        MoonfinSettingsService settingsService,
+        IHttpClientFactory httpClientFactory,
+        StudioLogoCacheService studioCache,
+        StudioLogoFetchService studioFetch)
     {
         _settingsService = settingsService;
         _httpClientFactory = httpClientFactory;
+        _studioCache = studioCache;
+        _studioFetch = studioFetch;
     }
 
     /// <summary>
@@ -252,6 +263,89 @@ public class TmdbController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Returns the TMDB production companies (studios) for a movie or show, serving
+    /// from the server-side cache and filling it from TMDB on a miss. Each company
+    /// reports whether a logo is available via <c>StudioImage/{companyId}</c>.
+    /// </summary>
+    [HttpGet("ProductionCompanies")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<StudioCompaniesResponse>> GetProductionCompanies(
+        [FromQuery] string tmdbId,
+        [FromQuery] string type,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tmdbId))
+        {
+            return BadRequest(new { Error = "Missing required parameter: tmdbId" });
+        }
+
+        var mediaType = string.Equals(type?.Trim(), "tv", StringComparison.OrdinalIgnoreCase) ? "tv" : "movie";
+
+        var cached = _studioCache.TryGetItem(mediaType, tmdbId.Trim(), StudioCacheMaxAge);
+        if (cached != null)
+        {
+            return Ok(new StudioCompaniesResponse { Success = true, Companies = cached });
+        }
+
+        var apiKey = await GetUserApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return Ok(new StudioCompaniesResponse { Success = false, Error = "No TMDB API key configured." });
+        }
+
+        try
+        {
+            var companies = await _studioFetch.FetchAndCacheItemAsync(mediaType, tmdbId.Trim(), apiKey, cancellationToken);
+            if (companies == null)
+            {
+                return Ok(new StudioCompaniesResponse { Success = false, Error = "Failed to fetch from TMDB." });
+            }
+
+            await _studioCache.FlushAsync();
+            return Ok(new StudioCompaniesResponse { Success = true, Companies = companies });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return Ok(new StudioCompaniesResponse { Success = false, Error = $"Failed to fetch from TMDB: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Serves a cached studio logo PNG, re-downloading from TMDB if the file was
+    /// evicted but the company is still known.
+    /// </summary>
+    [HttpGet("StudioImage/{companyId}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStudioImage(
+        [FromRoute] int companyId,
+        CancellationToken cancellationToken)
+    {
+        var ensured = await _studioFetch.EnsureImageAsync(companyId, cancellationToken);
+        if (!ensured)
+        {
+            return NotFound();
+        }
+
+        var path = _studioCache.GetImagePath(companyId);
+        if (!System.IO.File.Exists(path))
+        {
+            return NotFound();
+        }
+
+        Response.Headers["Cache-Control"] = "public,max-age=31536000,immutable";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return PhysicalFile(path, "image/png");
+    }
+
     private async Task<string?> GetUserApiKey()
     {
         var userId = this.GetUserIdFromClaims();
@@ -356,6 +450,21 @@ public class TmdbSeasonRatingsResponse
 
     [JsonPropertyName("episodes")]
     public List<TmdbEpisodeRatingResponse> Episodes { get; set; } = new();
+}
+
+/// <summary>
+/// Production companies (studios) response returned to the client.
+/// </summary>
+public class StudioCompaniesResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("companies")]
+    public List<StudioCompanyInfo> Companies { get; set; } = new();
 }
 
 // ===== Raw TMDB API Models =====
