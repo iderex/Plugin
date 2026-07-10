@@ -653,6 +653,22 @@
                             <div class="fieldDescription">Color used for focused cards and controls.</div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultBrowsingBlur">Browsing Blur</label>
+                            <input type="number" id="DefaultBrowsingBlur" is="emby-input" min="0" max="100" step="1" placeholder="Not set" />
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDetailsScreenBlur">Detail Screen Blur</label>
+                            <input type="number" id="DefaultDetailsScreenBlur" is="emby-input" min="0" max="100" step="1" placeholder="Not set" />
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultThemeMusicEnabled">Enable Theme Music</label>
+                            <select id="DefaultThemeMusicEnabled" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="DefaultWatchedIndicator">Watched Indicator</label>
                             <select id="DefaultWatchedIndicator" is="emby-select">
                                 <option value="">Not set (user decides)</option>
@@ -738,6 +754,14 @@
                             <div class="fieldDescription">Visual style/mode for the media bar.</div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarTrailerPreview">Trailer In Media Bar</label>
+                            <select id="DefaultMediaBarTrailerPreview" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarTrailerAudio">Trailer Audio In Media Bar</label>
                             <select id="DefaultMediaBarTrailerAudio" is="emby-select">
                                 <option value="">Not set (user decides)</option>
@@ -799,6 +823,14 @@
                                         <option value="medium">Medium</option>
                                         <option value="large">Large</option>
                                         <option value="extraLarge">Extra Large</option>
+                                    </select>
+                                </div>
+                                <div class="inputContainer">
+                                    <label class="inputLabel inputLabelUnfocused" for="DefaultThemeMusicOnHomeRows">Play Theme Music on Home Rows</label>
+                                    <select id="DefaultThemeMusicOnHomeRows" is="emby-select">
+                                        <option value="">Not set (user decides)</option>
+                                        <option value="true">Yes</option>
+                                        <option value="false">No</option>
                                     </select>
                                 </div>
                                 <div class="inputContainer">
@@ -2661,6 +2693,9 @@
                     setSelectValue('#DefaultVisualTheme', defaults.visualTheme, 'Configured theme');
                     setSelectValue('#DefaultDetailScreenStyle', defaults.detailScreenStyle, 'Configured style');
                     setSelectValue('#DefaultFocusColor', defaults.focusColor, 'Configured color');
+                    setNullableIntInput('#DefaultBrowsingBlur', defaults.browsingBlur);
+                    setNullableIntInput('#DefaultDetailsScreenBlur', defaults.detailsScreenBlur);
+                    setNullableBoolSelect('#DefaultThemeMusicEnabled', defaults.themeMusicEnabled);
                     setSelectValue('#DefaultWatchedIndicator', defaults.watchedIndicator, 'Configured mode');
                     setNullableBoolSelect('#DefaultCardFocusExpansion', defaults.cardFocusExpansion);
                     setSelectValue('#DefaultScreensaverMode', defaults.screensaverMode, 'Configured mode');
@@ -3017,6 +3052,9 @@
                         config.DefaultUserSettings.visualTheme = document.querySelector('#DefaultVisualTheme').value || null;
                         config.DefaultUserSettings.detailScreenStyle = document.querySelector('#DefaultDetailScreenStyle').value || null;
                         config.DefaultUserSettings.focusColor = document.querySelector('#DefaultFocusColor').value || null;
+                        config.DefaultUserSettings.browsingBlur = getNullableIntInput('#DefaultBrowsingBlur');
+                        config.DefaultUserSettings.detailsScreenBlur = getNullableIntInput('#DefaultDetailsScreenBlur');
+                        config.DefaultUserSettings.themeMusicEnabled = getNullableBoolSelect('#DefaultThemeMusicEnabled');
                         config.DefaultUserSettings.watchedIndicator = document.querySelector('#DefaultWatchedIndicator').value || null;
                         config.DefaultUserSettings.cardFocusExpansion = getNullableBoolSelect('#DefaultCardFocusExpansion');
                         config.DefaultUserSettings.screensaverMode = document.querySelector('#DefaultScreensaverMode').value || null;
