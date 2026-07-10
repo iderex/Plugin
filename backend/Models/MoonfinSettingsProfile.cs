@@ -215,6 +215,9 @@ public class MoonfinSettingsProfile
     [JsonPropertyName("themeMusicVolume")]
     public int? ThemeMusicVolume { get; set; }
 
+    [JsonPropertyName("themeMusicLoop")]
+    public bool? ThemeMusicLoop { get; set; }
+
     [JsonPropertyName("blockedRatings")]
     public List<string>? BlockedRatings { get; set; }
 
