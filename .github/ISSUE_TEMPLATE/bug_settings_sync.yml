@@ -1,0 +1,88 @@
+name: "Bug: Settings Sync"
+description: A setting is not syncing, not persisting, or an admin default is not applying
+title: "[Settings] "
+labels: ["Bug", "Settings Sync"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Settings sync spans the plugin and one or more clients, so please note which client you saw the problem on.
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version
+      description: The Moonbase plugin version (from the Jellyfin plugins page)
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: server_version
+    attributes:
+      label: Server type and version
+      description: "e.g. Jellyfin 10.10.0"
+      placeholder: Jellyfin 10.x.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_clients
+    attributes:
+      label: Client(s) where you saw the problem
+      multiple: true
+      options:
+        - Android
+        - Android TV
+        - iOS
+        - Linux
+        - macOS
+        - Roku
+        - Tizen (Samsung)
+        - tvOS
+        - Web
+        - webOS (LG)
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: setting_name
+    attributes:
+      label: Which setting
+      description: The setting name or the sync key if you know it
+      placeholder: e.g. Expanded Home Rows or displayPlaylistsRows
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: What is not working
+      options:
+        - Change on a client does not reach other clients
+        - Change does not persist on the server
+        - Admin default is not applied
+        - Value syncs but is wrong or the wrong type
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. On client A, change ...
+        2. Open client B ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs / errors (optional)
+      description: Paste any relevant Jellyfin server log lines, especially around the settings profile save or resolve.
+    validations:
+      required: false
