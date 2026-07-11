@@ -3,12 +3,13 @@ using System.Text.RegularExpressions;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Moonfin.Server.Models;
+using SharpCompress.Archives;
 
 namespace Moonfin.Server.Services;
 
 /// <summary>
-/// Scans "Mixed Content" Jellyfin libraries that hold retro game ROMs and exposes a
-/// normalized games model for Moonfin clients (EmulatorJS).
+/// Scans Jellyfin libraries that hold retro game ROMs and exposes a normalized games
+/// model for Moonfin clients (EmulatorJS).
 ///
 /// ROM files (.sfc, .nes, ...) are not recognized media types, so Jellyfin never indexes
 /// them as library items. Instead of relying on the item database, this service reads the
@@ -130,6 +131,100 @@ public class GamesService
     {
         var ext = Path.GetExtension(path);
         return ExtensionToCore.ContainsKey(ext) || ArchiveExtensions.Contains(ext);
+    }
+
+    /// <summary>True when the path is a supported archive (.zip/.7z) rather than a raw ROM.</summary>
+    public static bool IsArchive(string path) => ArchiveExtensions.Contains(Path.GetExtension(path));
+
+    /// <summary>
+    /// Extracts the playable ROM from a .zip/.7z into memory so every client receives raw ROM bytes
+    /// and never has to unpack the archive itself. The archive on disk is left untouched. Prefers the
+    /// entry with a recognized ROM extension, otherwise the largest file. Returns null when the
+    /// archive holds no usable ROM.
+    /// </summary>
+    public static byte[]? ExtractRomFromArchive(string archivePath)
+    {
+        // .zip goes through the built-in reader (always loadable, in the shared framework). .7z needs
+        // SharpCompress, isolated in its own method so a zip never takes a dependency on it (Jellyfin's
+        // plugin load context has historically failed to load SharpCompress.dll).
+        return ".7z".Equals(Path.GetExtension(archivePath), StringComparison.OrdinalIgnoreCase)
+            ? ExtractRomWithSharpCompress(archivePath)
+            : ExtractRomFromZip(archivePath);
+    }
+
+    // .zip via System.IO.Compression (shared framework; no third-party assembly to load).
+    private static byte[]? ExtractRomFromZip(string archivePath)
+    {
+        using var zip = System.IO.Compression.ZipFile.OpenRead(archivePath);
+        System.IO.Compression.ZipArchiveEntry? romEntry = null;
+        System.IO.Compression.ZipArchiveEntry? largest = null;
+        foreach (var entry in zip.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                continue; // directory entry
+            }
+
+            if (ExtensionToCore.ContainsKey(Path.GetExtension(entry.Name)))
+            {
+                romEntry = entry;
+                break;
+            }
+
+            if (largest == null || entry.Length > largest.Length)
+            {
+                largest = entry;
+            }
+        }
+
+        var chosen = romEntry ?? largest;
+        if (chosen == null)
+        {
+            return null;
+        }
+
+        using var entryStream = chosen.Open();
+        using var ms = new MemoryStream();
+        entryStream.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    // .7z via SharpCompress. Kept in its own method so the assembly only needs to load when a .7z is
+    // actually served; if it cannot load, the caller catches and returns 404 (zip is unaffected).
+    private static byte[]? ExtractRomWithSharpCompress(string archivePath)
+    {
+        using var archive = ArchiveFactory.Open(archivePath);
+        IArchiveEntry? romEntry = null;
+        IArchiveEntry? largest = null;
+        foreach (var entry in archive.Entries)
+        {
+            if (entry.IsDirectory)
+            {
+                continue;
+            }
+
+            if (ExtensionToCore.ContainsKey(Path.GetExtension(entry.Key ?? string.Empty)))
+            {
+                romEntry = entry;
+                break;
+            }
+
+            if (largest == null || entry.Size > largest.Size)
+            {
+                largest = entry;
+            }
+        }
+
+        var chosen = romEntry ?? largest;
+        if (chosen == null)
+        {
+            return null;
+        }
+
+        using var entryStream = chosen.OpenEntryStream();
+        using var ms = new MemoryStream();
+        entryStream.CopyTo(ms);
+        return ms.ToArray();
     }
 
     public GamesService(

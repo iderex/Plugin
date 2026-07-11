@@ -11,16 +11,25 @@
     <AssemblyName>Moonfin.Server</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>CS1591</NoWarn>
+    <!-- Copy non host-provided package DLLs (SharpCompress) into the output so the plugin can ship them. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Host-provided by Jellyfin: referenced for compile, but not copied/shipped (ExcludeAssets=runtime). -->
     <PackageReference Include="Jellyfin.Controller" Version="10.10.0">
       <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="Jellyfin.Model" Version="10.10.0">
       <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <!-- Not host-provided: must ship in the plugin folder. -->
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>

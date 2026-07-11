@@ -117,6 +117,11 @@ public class GamesController : ControllerBase
         }
 
         var path = _gamesService.ResolveFilePath(libraryId, token, allowBios: false);
+        if (!string.IsNullOrEmpty(path) && GamesService.IsArchive(path))
+        {
+            return StreamExtractedRom(path);
+        }
+
         return StreamFile(path);
     }
 
@@ -197,6 +202,28 @@ public class GamesController : ControllerBase
 
         // enableRangeProcessing lets EmulatorJS resume / seek large ROM downloads.
         return PhysicalFile(path, "application/octet-stream", enableRangeProcessing: true);
+    }
+
+    // Unpacks a .zip/.7z ROM in memory so the client gets raw ROM bytes (no client-side unzip),
+    // exactly like an unpacked file. The archive on disk is untouched. ROMs only, never BIOS.
+    private IActionResult StreamExtractedRom(string path)
+    {
+        byte[]? rom;
+        try
+        {
+            rom = GamesService.ExtractRomFromArchive(path);
+        }
+        catch
+        {
+            return NotFound();
+        }
+
+        if (rom == null || rom.Length == 0)
+        {
+            return NotFound();
+        }
+
+        return File(rom, "application/octet-stream", enableRangeProcessing: true);
     }
 
     private static bool GamesEnabled()

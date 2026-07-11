@@ -83,6 +83,7 @@ jobs:
 
           mkdir -p release
           cp backend/bin/Release/net8.0/Moonfin.Server.dll release/
+          cp backend/bin/Release/net8.0/SharpCompress.dll release/
 
           if [ -f frontend/index.html ]; then
             mkdir -p release/frontend

@@ -49,8 +49,9 @@ RELEASE_DIR="$ROOT_DIR/release"
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 
-# Copy DLL to release folder
+# Copy the plugin DLL plus its bundled dependencies
 cp "$BACKEND_DIR/bin/Release/net8.0/Moonfin.Server.dll" "$RELEASE_DIR/"
+cp "$BACKEND_DIR/bin/Release/net8.0/SharpCompress.dll" "$RELEASE_DIR/"
 
 # Bundle Flutter web files next to plugin DLL for local/sideload installs
 if [ -f "$FRONTEND_DIR/index.html" ]; then

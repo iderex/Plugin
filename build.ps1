@@ -37,9 +37,11 @@ $ReleaseDir = Join-Path $RootDir "release"
 if (Test-Path $ReleaseDir) { Remove-Item $ReleaseDir -Recurse -Force }
 New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
 
-# Copy DLL to release folder
+# Copy the plugin DLL plus its bundled dependencies
 $DllPath = Join-Path $BackendDir "bin\Release\net8.0\Moonfin.Server.dll"
 Copy-Item $DllPath $ReleaseDir
+$SharpCompressPath = Join-Path $BackendDir "bin\Release\net8.0\SharpCompress.dll"
+Copy-Item $SharpCompressPath $ReleaseDir
 
 # Bundle Flutter web files next to plugin DLL for local/sideload installs
 if (Test-Path $FrontendIndex) {
