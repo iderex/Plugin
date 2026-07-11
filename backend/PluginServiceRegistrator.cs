@@ -28,6 +28,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<StudioLogoCacheService>();
         serviceCollection.AddSingleton<StudioLogoFetchService>();
         serviceCollection.AddSingleton<CustomRowCacheService>();
+        serviceCollection.AddSingleton<CollectionOrderService>();
         serviceCollection.AddSingleton<GamesService>();
         serviceCollection.AddSingleton<GameSavesService>();
         serviceCollection.AddSingleton<CoresService>();
