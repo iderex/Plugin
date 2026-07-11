@@ -15,8 +15,11 @@ namespace Moonfin.Server.Services;
 public class SeerrWebhookService
 {
     private const int ManageRequestsBit = 16;
+    private const int ManageIssuesBit = 1048576;
     private const int AdminBit = 2;
     private const int OwnerSeerrUserId = 1;
+
+    private const string IssuesRoute = "/seerr/requests?tab=issues";
 
     private readonly SeerrSessionService _sessionService;
     private readonly MoonfinSettingsService _settingsService;
@@ -72,6 +75,18 @@ public class SeerrWebhookService
                     break;
                 case "MEDIA_AVAILABLE":
                     await HandleAvailableAsync(payload);
+                    break;
+                case "ISSUE_CREATED":
+                    await HandleIssueCreatedAsync(payload);
+                    break;
+                case "ISSUE_COMMENT":
+                    await HandleIssueCommentAsync(payload);
+                    break;
+                case "ISSUE_RESOLVED":
+                    await HandleIssueStatusAsync(payload, "ISSUE_RESOLVED", "Issue resolved", "resolved");
+                    break;
+                case "ISSUE_REOPENED":
+                    await HandleIssueStatusAsync(payload, "ISSUE_REOPENED", "Issue reopened", "reopened");
                     break;
                 default:
                     _logger.LogDebug("Ignoring Seerr webhook type {Type}", notificationType);
@@ -185,6 +200,124 @@ public class SeerrWebhookService
         var body = $"{subject} was {verb}";
 
         Deliver(targetUserId.Value, tmdbId ?? tvdbId ?? subject, notificationType, title, body, route);
+        return Task.CompletedTask;
+    }
+
+    // New issues go to everyone who can manage them, except the reporter.
+    private Task HandleIssueCreatedAsync(JsonElement payload)
+    {
+        var subject = GetString(payload, "subject") ?? "a title";
+        var reporter = GetIssueReporterName(payload);
+        var body = $"{reporter ?? "Someone"} reported an issue with {subject}";
+
+        NotifyIssueManagers(
+            GetIssueReporterJellyfinId(payload),
+            GetIssueId(payload) ?? subject,
+            "ISSUE_CREATED",
+            "New issue",
+            body);
+
+        return Task.CompletedTask;
+    }
+
+    // A comment notifies the other side of the thread: managers hear from the
+    // reporter, the reporter hears from anyone else. The commenter never
+    // notifies themselves.
+    private Task HandleIssueCommentAsync(JsonElement payload)
+    {
+        var subject = GetString(payload, "subject") ?? "a title";
+        var issueKey = GetIssueId(payload) ?? subject;
+        var reporter = GetIssueReporterName(payload);
+        var reporterJellyfinId = GetIssueReporterJellyfinId(payload);
+        var commenter = GetCommenterName(payload);
+        var commenterJellyfinId = _sessionService.GetJellyfinUserForSeerrUsername(commenter);
+
+        var title = "Issue comment";
+        var message = GetCommentMessage(payload);
+        var body = string.IsNullOrWhiteSpace(message)
+            ? $"{commenter ?? "Someone"} commented on {subject}"
+            : $"{commenter ?? "Someone"} on {subject}: {Truncate(message, 120)}";
+
+        var commenterIsReporter = commenter != null &&
+            string.Equals(commenter, reporter, StringComparison.OrdinalIgnoreCase);
+
+        if (commenterIsReporter)
+        {
+            NotifyIssueManagers(commenterJellyfinId, issueKey, "ISSUE_COMMENT", title, body);
+            return Task.CompletedTask;
+        }
+
+        if (reporterJellyfinId == null ||
+            (commenterJellyfinId.HasValue && reporterJellyfinId.Value == commenterJellyfinId.Value))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_store.GetPrefs(reporterJellyfinId.Value).NotifyOnIssues)
+        {
+            Deliver(reporterJellyfinId.Value, issueKey, "ISSUE_COMMENT", title, body, IssuesRoute);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void NotifyIssueManagers(
+        Guid? excludeUserId,
+        string mediaKey,
+        string notificationType,
+        string title,
+        string body)
+    {
+        var seen = new HashSet<Guid>();
+        foreach (var session in _sessionService.EnumerateSessions())
+        {
+            var userId = session.JellyfinUserId;
+            if (excludeUserId.HasValue && userId == excludeUserId.Value)
+            {
+                continue;
+            }
+
+            if (!seen.Add(userId))
+            {
+                continue;
+            }
+
+            if (!CanManageIssues(session) || !_store.GetPrefs(userId).NotifyOnIssues)
+            {
+                continue;
+            }
+
+            Deliver(userId, mediaKey, notificationType, title, body, IssuesRoute);
+        }
+    }
+
+    // Resolved and reopened notify the reporter.
+    private Task HandleIssueStatusAsync(JsonElement payload, string notificationType, string title, string verb)
+    {
+        var subject = GetString(payload, "subject") ?? "Your issue";
+        var issueId = GetIssueId(payload);
+        var reporterJellyfinId = GetIssueReporterJellyfinId(payload);
+        if (reporterJellyfinId == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        // When a comment block rides along, its author performed the action,
+        // so the reporter resolving their own issue stays silent.
+        var actor = GetCommenterName(payload);
+        var actorJellyfinId = _sessionService.GetJellyfinUserForSeerrUsername(actor);
+        if (actorJellyfinId.HasValue && actorJellyfinId.Value == reporterJellyfinId.Value)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!_store.GetPrefs(reporterJellyfinId.Value).NotifyOnIssues)
+        {
+            return Task.CompletedTask;
+        }
+
+        var body = $"The issue with {subject} was {verb}";
+        Deliver(reporterJellyfinId.Value, issueId ?? subject, notificationType, title, body, IssuesRoute);
         return Task.CompletedTask;
     }
 
@@ -423,6 +556,89 @@ public class SeerrWebhookService
         }
 
         return (session.Permissions & AdminBit) != 0 || (session.Permissions & ManageRequestsBit) != 0;
+    }
+
+    private static bool CanManageIssues(SeerrSession session)
+    {
+        if (session.SeerrUserId == OwnerSeerrUserId)
+        {
+            return true;
+        }
+
+        return (session.Permissions & AdminBit) != 0 || (session.Permissions & ManageIssuesBit) != 0;
+    }
+
+    private static string? GetIssueId(JsonElement payload)
+    {
+        if (payload.TryGetProperty("issue", out var issue) &&
+            issue.ValueKind == JsonValueKind.Object)
+        {
+            return GetString(issue, "issue_id");
+        }
+
+        return null;
+    }
+
+    private static string? GetIssueReporterName(JsonElement payload)
+    {
+        if (payload.TryGetProperty("issue", out var issue) &&
+            issue.ValueKind == JsonValueKind.Object)
+        {
+            var name = GetString(issue, "reportedBy_username");
+            if (!string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+        }
+
+        return GetString(payload, "notifyuser_username");
+    }
+
+    // Seerr's webhook exposes no Jellyfin id for issue reporters, so this maps
+    // the username against a stored session, with the notify-user id fallback.
+    private Guid? GetIssueReporterJellyfinId(JsonElement payload)
+    {
+        var byUsername = _sessionService.GetJellyfinUserForSeerrUsername(
+            GetIssueReporterName(payload));
+        if (byUsername != null)
+        {
+            return byUsername;
+        }
+
+        if (TryGetInt(payload, "notifyuser_id", out var notifyUserId))
+        {
+            return _sessionService.GetJellyfinUserForSeerrUser(notifyUserId);
+        }
+
+        return null;
+    }
+
+    private static string? GetCommenterName(JsonElement payload)
+    {
+        if (payload.TryGetProperty("comment", out var comment) &&
+            comment.ValueKind == JsonValueKind.Object)
+        {
+            return GetString(comment, "commentedBy_username");
+        }
+
+        return null;
+    }
+
+    private static string? GetCommentMessage(JsonElement payload)
+    {
+        if (payload.TryGetProperty("comment", out var comment) &&
+            comment.ValueKind == JsonValueKind.Object)
+        {
+            return GetString(comment, "comment_message");
+        }
+
+        return null;
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : $"{trimmed[..maxLength].TrimEnd()}...";
     }
 
     private string? ResolveLibraryItemId(string? tmdbId, string? tvdbId)

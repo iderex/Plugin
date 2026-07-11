@@ -78,11 +78,20 @@ public class NotificationStore
         return new NotificationPrefs { JellyfinUserId = userId };
     }
 
-    public void SavePrefs(Guid userId, bool notifyOnNewRequests, bool notifyOnLibraryAdded)
+    public void SavePrefs(
+        Guid userId,
+        bool notifyOnNewRequests,
+        bool notifyOnLibraryAdded,
+        bool? notifyOnIssues = null)
     {
         var prefs = GetPrefs(userId);
         prefs.NotifyOnNewRequests = notifyOnNewRequests;
         prefs.NotifyOnLibraryAdded = notifyOnLibraryAdded;
+        if (notifyOnIssues.HasValue)
+        {
+            prefs.NotifyOnIssues = notifyOnIssues.Value;
+        }
+
         Write(userId, prefs);
     }
 
@@ -196,8 +205,13 @@ public class NotificationPrefs
     [JsonPropertyName("notifyOnNewRequests")]
     public bool NotifyOnNewRequests { get; set; }
 
+    // These default to true to match the client toggles, which show enabled
+    // before the first prefs sync ever reaches the server.
     [JsonPropertyName("notifyOnLibraryAdded")]
-    public bool NotifyOnLibraryAdded { get; set; }
+    public bool NotifyOnLibraryAdded { get; set; } = true;
+
+    [JsonPropertyName("notifyOnIssues")]
+    public bool NotifyOnIssues { get; set; } = true;
 
     [JsonPropertyName("devices")]
     public List<DeviceRegistration> Devices { get; set; } = new();

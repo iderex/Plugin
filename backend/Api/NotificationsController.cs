@@ -49,7 +49,11 @@ public class NotificationsController : ControllerBase
             return Unauthorized(new { error = "User not authenticated" });
         }
 
-        _store.SavePrefs(userId.Value, request.NotifyOnNewRequests, request.NotifyOnLibraryAdded);
+        _store.SavePrefs(
+            userId.Value,
+            request.NotifyOnNewRequests,
+            request.NotifyOnLibraryAdded,
+            request.NotifyOnIssues);
         return Ok(new { success = true });
     }
 
@@ -71,7 +75,8 @@ public class NotificationsController : ControllerBase
         return Ok(new
         {
             notifyOnNewRequests = prefs.NotifyOnNewRequests,
-            notifyOnLibraryAdded = prefs.NotifyOnLibraryAdded
+            notifyOnLibraryAdded = prefs.NotifyOnLibraryAdded,
+            notifyOnIssues = prefs.NotifyOnIssues
         });
     }
 
@@ -136,7 +141,11 @@ public class NotificationsController : ControllerBase
             url,
             secret,
             secretHeader = WebhookSecretHeader,
-            notificationTypes = new[] { "MEDIA_PENDING", "MEDIA_APPROVED", "MEDIA_AVAILABLE", "MEDIA_DECLINED" },
+            notificationTypes = new[]
+            {
+                "MEDIA_PENDING", "MEDIA_APPROVED", "MEDIA_AVAILABLE", "MEDIA_DECLINED",
+                "ISSUE_CREATED", "ISSUE_COMMENT", "ISSUE_RESOLVED", "ISSUE_REOPENED"
+            },
             status = _provisioning.LastStatus.ToString(),
             likelyUnreachable = _provisioning.LastResolvedUrlLikelyUnreachable,
             currentTypes,
@@ -231,6 +240,9 @@ public class NotificationPrefsRequest
 {
     public bool NotifyOnNewRequests { get; set; }
     public bool NotifyOnLibraryAdded { get; set; }
+
+    // Nullable so payloads from clients that predate the field keep the stored value.
+    public bool? NotifyOnIssues { get; set; }
 }
 
 /// <summary>Request body for registering or removing a push device.</summary>

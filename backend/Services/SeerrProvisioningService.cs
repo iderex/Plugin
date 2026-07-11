@@ -19,8 +19,9 @@ public class SeerrProvisioningService
     private const int AdminBit = 2;
     private const int OwnerSeerrUserId = 1;
 
-    // MEDIA_PENDING (2) | MEDIA_APPROVED (4) | MEDIA_AVAILABLE (8) | MEDIA_DECLINED (64).
-    public const int TargetTypes = 78;
+    // MEDIA_PENDING (2) | MEDIA_APPROVED (4) | MEDIA_AVAILABLE (8) | MEDIA_DECLINED (64) |
+    // ISSUE_CREATED (256) | ISSUE_COMMENT (512) | ISSUE_RESOLVED (1024) | ISSUE_REOPENED (2048).
+    public const int TargetTypes = 3918;
 
     private const string WebhookPath = "/Moonfin/Seerr/Webhook";
     private const string SettingsPath = "settings/notifications/webhook";
@@ -42,6 +43,16 @@ public class SeerrProvisioningService
         ""request_id"": ""{{request_id}}"",
         ""requestedBy_username"": ""{{requestedBy_username}}"",
         ""requestedBy_jellyfinUserId"": ""{{requestedBy_jellyfinUserId}}""
+    },
+    ""{{issue}}"": {
+        ""issue_id"": ""{{issue_id}}"",
+        ""issue_type"": ""{{issue_type}}"",
+        ""issue_status"": ""{{issue_status}}"",
+        ""reportedBy_username"": ""{{reportedBy_username}}""
+    },
+    ""{{comment}}"": {
+        ""comment_message"": ""{{comment_message}}"",
+        ""commentedBy_username"": ""{{commentedBy_username}}""
     },
     ""{{extra}}"": []
 }";
