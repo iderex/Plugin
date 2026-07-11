@@ -19,21 +19,27 @@ public class CustomRowController : ControllerBase
 {
     private readonly MoonfinSettingsService _settingsService;
     private readonly CustomRowCacheService _cacheService;
+    private readonly ImdbListsCacheService _imdbCacheService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<CustomRowController> _logger;
+    private readonly ILogger<ImdbListsTask> _taskLogger;
 
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
     public CustomRowController(
         MoonfinSettingsService settingsService,
         CustomRowCacheService cacheService,
+        ImdbListsCacheService imdbCacheService,
         IHttpClientFactory httpClientFactory,
-        ILogger<CustomRowController> logger)
+        ILogger<CustomRowController> logger,
+        ILogger<ImdbListsTask> taskLogger)
     {
         _settingsService = settingsService;
         _cacheService = cacheService;
+        _imdbCacheService = imdbCacheService;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _taskLogger = taskLogger;
     }
 
     [HttpGet("Items")]
@@ -58,6 +64,24 @@ public class CustomRowController : ControllerBase
         if (userId == null)
         {
             return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        if (source == "imdb")
+        {
+            try
+            {
+                var imdbItems = await FetchImdbList(type, cancellationToken);
+                return Ok(new CustomRowResponse
+                {
+                    Success = true,
+                    Items = imdbItems
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to resolve IMDb custom row for type: {Type}", type);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Error = ex.Message });
+            }
         }
 
         var paramHash = GetStringSha256Hash(@params);
@@ -710,6 +734,56 @@ public class CustomRowController : ControllerBase
             query["api_key"] = apiKey;
             uriBuilder.Query = query.ToString();
             request.RequestUri = uriBuilder.Uri;
+        }
+    }
+
+    // One gate per chart so a burst of clients on an expired chart triggers a single scrape
+    // instead of one per request. Only the handful of chart types ever get added, so the map
+    // doesn't grow unbounded.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> ImdbFetchGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<List<CustomRowItem>> FetchImdbList(string type, CancellationToken cancellationToken)
+    {
+        var cached = _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(1));
+        if (cached != null && cached.Count > 0)
+        {
+            return cached;
+        }
+
+        var gate = ImdbFetchGates.GetOrAdd(type, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Another request may have refilled the cache while we waited on the gate.
+            var refreshed = _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(1));
+            if (refreshed != null && refreshed.Count > 0)
+            {
+                return refreshed;
+            }
+
+            _logger.LogInformation("IMDb chart {Type} cache miss or expired, fetching on-demand", type);
+            try
+            {
+                var task = new ImdbListsTask(_httpClientFactory, _imdbCacheService, _taskLogger);
+                var items = await task.FetchChartAsync(type, cancellationToken);
+                if (items != null && items.Count > 0)
+                {
+                    _imdbCacheService.SetItems(type, items);
+                    await _imdbCacheService.FlushAsync();
+                    return items;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch IMDb chart {Type} on-demand", type);
+            }
+
+            return _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(30)) ?? new List<CustomRowItem>();
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 
