@@ -150,12 +150,14 @@ public class SeerrWebhookService
         var targetUserId = GetRequesterJellyfinId(payload);
         if (targetUserId == null)
         {
+            _logger.LogWarning("Seerr webhook dropped: could not resolve the requester");
             return Task.CompletedTask;
         }
 
         var prefs = _store.GetPrefs(targetUserId.Value);
         if (!prefs.NotifyOnLibraryAdded)
         {
+            _logger.LogInformation("Seerr webhook skipped: user {UserId} has library-added notifications off", targetUserId.Value);
             return Task.CompletedTask;
         }
 
@@ -187,12 +189,14 @@ public class SeerrWebhookService
         var targetUserId = GetRequesterJellyfinId(payload);
         if (targetUserId == null)
         {
+            _logger.LogWarning("Seerr webhook dropped: could not resolve the requester");
             return Task.CompletedTask;
         }
 
         var prefs = _store.GetPrefs(targetUserId.Value);
         if (!prefs.NotifyOnLibraryAdded)
         {
+            _logger.LogInformation("Seerr webhook skipped: user {UserId} has library-added notifications off", targetUserId.Value);
             return Task.CompletedTask;
         }
 
@@ -722,7 +726,20 @@ public class SeerrWebhookService
 
         if (TryGetInt(payload, "notifyuser_id", out var notifyUserId))
         {
-            return _sessionService.GetJellyfinUserForSeerrUser(notifyUserId);
+            var mapped = _sessionService.GetJellyfinUserForSeerrUser(notifyUserId);
+            if (mapped != null)
+            {
+                return mapped;
+            }
+        }
+
+        // Availability and decision events set notifyuser rather than a full request block,
+        // so map that username against a stored session as a last resort.
+        var byNotifyUsername = _sessionService.GetJellyfinUserForSeerrUsername(
+            GetString(payload, "notifyuser_username"));
+        if (byNotifyUsername != null)
+        {
+            return byNotifyUsername;
         }
 
         return null;

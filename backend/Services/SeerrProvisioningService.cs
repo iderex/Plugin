@@ -33,6 +33,7 @@ public class SeerrProvisioningService
     ""notification_type"": ""{{notification_type}}"",
     ""subject"": ""{{subject}}"",
     ""message"": ""{{message}}"",
+    ""notifyuser_username"": ""{{notifyuser_username}}"",
     ""{{media}}"": {
         ""media_type"": ""{{media_type}}"",
         ""tmdbId"": ""{{media_tmdbid}}"",
