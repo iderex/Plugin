@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaBrowser.Model.Tasks;
@@ -59,6 +60,11 @@ public class MdbListListsTask : IScheduledTask
         var maxItemsPerList = config?.MdblistOfficialListsMaxItems ?? DefaultMaxItemsPerList;
         if (maxItemsPerList <= 0) maxItemsPerList = DefaultMaxItemsPerList;
 
+        // Poster enrichment is best-effort: only runs when a server TMDB key is set, and seeds
+        // from the existing cache so it only calls TMDB for ids it has not resolved before.
+        var tmdbKey = config?.TmdbApiKey;
+        var knownPosters = _cacheService.GetKnownPosters();
+
         progress.Report(0);
 
         var rawCatalog = await FetchCatalogAsync(apiKey, cancellationToken).ConfigureAwait(false);
@@ -95,6 +101,7 @@ public class MdbListListsTask : IScheduledTask
                 var items = await FetchListItemsAsync(entry.Slug, apiKey, maxItemsPerList, cancellationToken).ConfigureAwait(false);
                 if (items != null)
                 {
+                    await EnrichPostersAsync(items, tmdbKey, knownPosters, cancellationToken).ConfigureAwait(false);
                     _cacheService.SetItems(entry.Slug, items);
                     _logger.LogDebug("MDBList official lists: cached {Count} items for {Slug}", items.Count, entry.Slug);
                 }
@@ -251,6 +258,82 @@ public class MdbListListsTask : IScheduledTask
         }
     }
 
+    /// <summary>
+    /// Fills each item's Poster from TMDB (best-effort), reusing already-resolved posters so the
+    /// sync only calls TMDB for ids it has not seen. No-op when no server TMDB key is configured.
+    /// </summary>
+    private async Task EnrichPostersAsync(List<MdbListItem> items, string? tmdbKey, Dictionary<string, string> knownPosters, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tmdbKey)) return;
+
+        HttpClient? client = null;
+        foreach (var item in items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var tmdbId = item.ProviderIds?.Tmdb;
+            if (string.IsNullOrEmpty(tmdbId)) continue;
+
+            var key = item.Type + ":" + tmdbId;
+            if (knownPosters.TryGetValue(key, out var known))
+            {
+                item.Poster = known;
+                continue;
+            }
+
+            if (client == null)
+            {
+                client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Moonfin/1.0");
+            }
+
+            var poster = await FetchTmdbPosterAsync(client, item.Type, tmdbId!, tmdbKey!, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(poster)) continue;
+
+            item.Poster = poster;
+            knownPosters[key] = poster!;
+        }
+    }
+
+    private async Task<string?> FetchTmdbPosterAsync(HttpClient client, string type, string tmdbId, string tmdbKey, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var path = type == "show" ? "tv" : "movie";
+            var url = $"https://api.themoviedb.org/3/{path}/{Uri.EscapeDataString(tmdbId)}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            ApplyTmdbAuth(request, tmdbKey);
+
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var details = JsonSerializer.Deserialize<TmdbDetails>(json, MdbListController.JsonOptions);
+            return string.IsNullOrWhiteSpace(details?.PosterPath) ? null : details!.PosterPath;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "TMDB poster fetch failed for {Type}/{TmdbId}", type, tmdbId);
+            return null;
+        }
+    }
+
+    private static void ApplyTmdbAuth(HttpRequestMessage request, string apiKey)
+    {
+        // v4 read tokens are JWTs (eyJ...) and use a Bearer header. v3 keys go in the query.
+        if (apiKey.StartsWith("eyJ", StringComparison.Ordinal))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        }
+        else
+        {
+            var sep = request.RequestUri!.Query.Length > 0 ? "&" : "?";
+            request.RequestUri = new Uri(request.RequestUri + sep + "api_key=" + Uri.EscapeDataString(apiKey));
+        }
+    }
+
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
         yield return new TaskTriggerInfo
@@ -263,6 +346,12 @@ public class MdbListListsTask : IScheduledTask
             Type = TaskTriggerInfo.TriggerDaily,
             TimeOfDayTicks = TimeSpan.FromHours(4).Ticks
         };
+    }
+
+    private class TmdbDetails
+    {
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
     }
 
     private class RawOfficialList

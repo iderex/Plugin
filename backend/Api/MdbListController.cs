@@ -434,6 +434,10 @@ public class MdbListItem
     [JsonPropertyName("rank")]
     public int? Rank { get; set; }
 
+    /// <summary>TMDB poster path (relative, e.g. /abc.jpg), resolved server-side during the sync.</summary>
+    [JsonPropertyName("poster")]
+    public string? Poster { get; set; }
+
     /// <summary>
     /// External ids the client matches against the local library.
     /// Casing intentionally matches the client's AggregatedItem.providerIds (Imdb/Tmdb/Tvdb).

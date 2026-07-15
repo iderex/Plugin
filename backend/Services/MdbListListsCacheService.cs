@@ -87,6 +87,28 @@ public class MdbListListsCacheService
 
     private static string ItemsKey(string slug) => $"items:{slug}";
 
+    /// <summary>
+    /// Returns already-resolved posters from the current cache, keyed by "{type}:{tmdbId}",
+    /// so the sync only calls TMDB for ids it has not resolved before.
+    /// </summary>
+    public Dictionary<string, string> GetKnownPosters()
+    {
+        var cache = EnsureLoaded();
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in cache.Values)
+        {
+            if (entry.Items == null) continue;
+            foreach (var item in entry.Items)
+            {
+                var tmdb = item.ProviderIds?.Tmdb;
+                if (string.IsNullOrEmpty(tmdb) || string.IsNullOrEmpty(item.Poster)) continue;
+                var key = item.Type + ":" + tmdb;
+                if (!result.ContainsKey(key)) result[key] = item.Poster!;
+            }
+        }
+        return result;
+    }
+
     public async Task FlushAsync()
     {
         var cache = _cache;
