@@ -25,13 +25,13 @@ artifacts/
 # Node
 node_modules/
 
-# Flutter web drop folder
-frontend/*
-!frontend/.gitkeep
-!frontend/theme/
-!frontend/theme/**
-!frontend/editor/
-!frontend/editor/**
+# Flutter web drop folder (copied from Moonfin-Core)
+Jellyfin/frontend/*
+!Jellyfin/frontend/.gitkeep
+!Jellyfin/frontend/theme/
+!Jellyfin/frontend/theme/**
+!Jellyfin/frontend/editor/
+!Jellyfin/frontend/editor/**
 
 # IDE / Editor
 .vs/
