@@ -1,0 +1,93 @@
+using MediaBrowser.Controller.Net;
+using MediaBrowser.Model.Services;
+
+namespace Emby.Plugins.Moonfin.Api
+{
+    [Route("/Moonfin/Games/Libraries", "GET")]
+    [Authenticated]
+    public class GetGameLibrariesRequest : IReturn<object> { }
+
+    [Route("/Moonfin/Games/{LibraryId}/Systems", "GET")]
+    [Authenticated]
+    public class GetGameSystemsRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+    }
+
+    [Route("/Moonfin/Games/{LibraryId}/Games", "GET")]
+    [Authenticated]
+    public class GetGamesRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+        public string? System { get; set; }
+    }
+
+    [Route("/Moonfin/Games/{LibraryId}/Games/{GameId}", "GET")]
+    [Authenticated]
+    public class GetGameDetailRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+        public string GameId { get; set; } = string.Empty;
+    }
+
+    [Route("/Moonfin/Games/{LibraryId}/Rom/{Token}", "GET")]
+    [Authenticated]
+    public class GetGameRomRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+    }
+
+    [Route("/Moonfin/Games/{LibraryId}/Bios/{Token}", "GET")]
+    [Authenticated]
+    public class GetGameBiosRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+    }
+
+    [Route("/Moonfin/Games/Saves/{GameId}", "GET")]
+    [Authenticated]
+    public class GetGameSaveRequest : IReturn<object>
+    {
+        public string GameId { get; set; } = string.Empty;
+        public string? Kind { get; set; }
+    }
+
+    [Route("/Moonfin/Games/Saves/{GameId}", "PUT")]
+    [Authenticated]
+    public class PutGameSaveRequest : IReturn<object>, IRequiresRequestStream
+    {
+        public string GameId { get; set; } = string.Empty;
+        public string? Kind { get; set; }
+        public System.IO.Stream RequestStream { get; set; } = null!;
+    }
+
+    [Route("/Moonfin/Games/Debug", "GET")]
+    [Authenticated(Roles = "Admin")]
+    public class GetGamesDebugRequest : IReturn<object> { }
+
+    [Route("/Moonfin/Games/Cores/Status", "GET")]
+    [Authenticated]
+    public class GetCoresStatusRequest : IReturn<object> { }
+
+    [Route("/Moonfin/Games/Cores/Install", "POST")]
+    [Authenticated(Roles = "Admin")]
+    public class InstallCoresRequest : IReturn<object> { }
+
+    [Route("/Moonfin/Games/Cores/Upload", "POST")]
+    [Authenticated(Roles = "Admin")]
+    public class UploadCoresRequest : IReturn<object>, IRequiresRequestStream
+    {
+        public System.IO.Stream RequestStream { get; set; } = null!;
+    }
+
+    [Route("/Moonfin/EmulatorJS/player.html", "GET")]
+    public class GetEmulatorPlayerRequest : IReturn<object> { }
+
+    [Route("/Moonfin/EmulatorJS/data/{Path*}", "GET")]
+    public class GetEmulatorDataRequest : IReturn<object>
+    {
+        public string? Path { get; set; }
+    }
+}

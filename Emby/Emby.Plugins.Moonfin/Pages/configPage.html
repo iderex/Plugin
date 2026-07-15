@@ -1,0 +1,1389 @@
+<div id="MoonfinConfigPage" is="emby-scroller" class="view flex flex-direction-column scrollFrameY flex-grow" data-mousewheel="true" data-horizontal="false" data-focusscroll="true" data-bindheader="true" data-controller="__plugin/moonfinjs" data-title="Moonfin">
+    <style>
+        #MoonfinConfigPage #AdminThemeChooseBtn {
+            background: rgba(128, 128, 128, 0.16);
+            color: inherit;
+            border: 1px solid rgba(128, 128, 128, 0.32);
+        }
+
+        #MoonfinConfigPage #AdminThemeChooseBtn:hover {
+            background: rgba(128, 128, 128, 0.26);
+        }
+
+        #MoonfinConfigPage #MoonfinConfigForm {
+            max-width: none;
+        }
+
+        #MoonfinConfigPage .moonfinAdminShell {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            margin-top: 1em;
+        }
+
+        #MoonfinConfigPage .moonfinTabPanel .inputContainer input,
+        #MoonfinConfigPage .moonfinTabPanel .inputContainer textarea,
+        #MoonfinConfigPage .moonfinTabPanel .inputContainer select,
+        #MoonfinConfigPage .moonfinTabPanel .selectContainer select {
+            max-width: 720px;
+        }
+
+        #MoonfinConfigPage .moonfinAdminNav {
+            flex: 0 0 280px;
+            position: sticky;
+            top: 0.5em;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 14px 12px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 14px;
+            background: rgba(128, 128, 128, 0.05);
+        }
+
+        #MoonfinConfigPage .moonfinNavBrand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 6px 8px 16px;
+        }
+
+        #MoonfinConfigPage .moonfinNavLogo {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        #MoonfinConfigPage .moonfinNavBrandText {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: inherit;
+        }
+
+        #MoonfinConfigPage .moonfinNavItem {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            border-radius: 10px;
+            padding: 11px 12px;
+            cursor: pointer;
+            box-shadow: inset 2px 0 0 transparent;
+            transition: background 0.15s ease;
+        }
+
+        #MoonfinConfigPage .moonfinNavItem:hover {
+            background: rgba(128, 128, 128, 0.12);
+        }
+
+        #MoonfinConfigPage .moonfinNavItem.is-active {
+            background: rgba(0, 164, 220, 0.14);
+            box-shadow: inset 2px 0 0 #00a4dc;
+        }
+
+        #MoonfinConfigPage .moonfinNavIcon {
+            width: 23px;
+            height: 23px;
+            fill: currentColor;
+            opacity: 0.62;
+            flex-shrink: 0;
+        }
+
+        #MoonfinConfigPage .moonfinNavItem.is-active .moonfinNavIcon {
+            color: #00a4dc;
+            opacity: 1;
+        }
+
+        #MoonfinConfigPage .moonfinNavText {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        #MoonfinConfigPage .moonfinNavLabel {
+            font-size: 1.02em;
+            color: inherit;
+            line-height: 1.3;
+        }
+
+        #MoonfinConfigPage .moonfinNavItem.is-active .moonfinNavLabel {
+            font-weight: 600;
+        }
+
+        #MoonfinConfigPage .moonfinNavSub {
+            font-size: 0.82em;
+            color: currentColor;
+            opacity: 0.55;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #MoonfinConfigPage .moonfinAdminMain {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        #MoonfinConfigPage .moonfinSearch {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        #MoonfinConfigPage .moonfinSearchIcon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        #MoonfinConfigPage .moonfinSearchInput {
+            box-sizing: border-box;
+            width: 100%;
+            height: 38px;
+            padding: 0 12px 0 36px;
+            border: 1px solid rgba(128, 128, 128, 0.34);
+            border-radius: 10px;
+            background: rgba(128, 128, 128, 0.08);
+            color: inherit;
+            font-size: 0.9em;
+        }
+
+        #MoonfinConfigPage .moonfinTabPanel {
+            display: none;
+        }
+
+        #MoonfinConfigPage .moonfinTabPanel.is-active {
+            display: block;
+            animation: moonfinFade 0.18s ease;
+        }
+
+        @keyframes moonfinFade {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        #MoonfinConfigPage .moonfinTabPanel .verticalSection {
+            margin: 0 0 16px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 12px;
+            background: rgba(128, 128, 128, 0.05);
+            padding: 2px 18px 16px;
+        }
+
+        #MoonfinConfigPage .moonfinTabPanel .verticalSection > .sectionTitle {
+            margin: 16px 0 12px;
+            font-size: 1.05em;
+            font-weight: 600;
+        }
+
+        #MoonfinConfigPage .moonfinSaveBar {
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 12px 14px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 12px;
+            background: rgba(128, 128, 128, 0.16);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        #MoonfinConfigPage .moonfinSaveBar .button-submit {
+            margin: 0;
+            width: auto;
+        }
+
+        #MoonfinConfigPage .moonfinSubTabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin: 2px 0 16px;
+        }
+
+        #MoonfinConfigPage .moonfinSubTab {
+            border: 1px solid rgba(128, 128, 128, 0.34);
+            background: transparent;
+            color: inherit;
+            opacity: 0.75;
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        #MoonfinConfigPage .moonfinSubTab:hover {
+            border-color: rgba(128, 128, 128, 0.5);
+            opacity: 1;
+        }
+
+        #MoonfinConfigPage .moonfinSubTab.is-active {
+            border-color: #00a4dc;
+            background: rgba(0, 164, 220, 0.16);
+            color: #00a4dc;
+            opacity: 1;
+        }
+
+        #MoonfinConfigPage .moonfinSubPanel {
+            display: none;
+        }
+
+        #MoonfinConfigPage .moonfinSubPanel.is-active {
+            display: block;
+        }
+
+        #MoonfinConfigPage.moonfin-searching .moonfinTabPanel {
+            display: block;
+        }
+
+        #MoonfinConfigPage.moonfin-searching .moonfinSubTabs,
+        #MoonfinConfigPage.moonfin-searching .moonfinAdminNav {
+            display: none;
+        }
+
+        #MoonfinConfigPage.moonfin-searching .moonfinSubPanel {
+            display: block;
+        }
+
+        #MoonfinConfigPage .moonfin-hidden-by-search {
+            display: none !important;
+        }
+
+        @media (max-width: 800px) {
+            #MoonfinConfigPage .moonfinAdminShell {
+                flex-direction: column;
+            }
+
+            #MoonfinConfigPage .moonfinAdminNav {
+                flex: 0 0 auto;
+                flex-direction: row;
+                position: static;
+                width: 100%;
+                overflow-x: auto;
+                gap: 6px;
+            }
+
+            #MoonfinConfigPage .moonfinNavBrand,
+            #MoonfinConfigPage .moonfinNavSub {
+                display: none;
+            }
+
+            #MoonfinConfigPage .moonfinNavItem {
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                min-width: 78px;
+                box-shadow: none;
+                text-align: center;
+            }
+
+            #MoonfinConfigPage .moonfinNavItem.is-active {
+                box-shadow: inset 0 -2px 0 #00a4dc;
+            }
+        }
+
+        #MoonfinConfigPage .homeLayoutBuilder {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 14px;
+            align-items: start;
+        }
+
+        #MoonfinConfigPage .homeLayoutPanel {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 430px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 6px;
+            background: rgba(128, 128, 128, 0.05);
+            padding: 10px;
+        }
+
+        #MoonfinConfigPage .homeLayoutPanelTitle {
+            margin: 0 0 10px;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: inherit;
+        }
+
+        #MoonfinConfigPage .homeLayoutList {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            scrollbar-color: rgba(0, 164, 220, 0.65) rgba(128, 128, 128, 0.12);
+            scrollbar-width: auto;
+        }
+
+        #MoonfinConfigPage .homeLayoutList::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #MoonfinConfigPage .homeLayoutList::-webkit-scrollbar-track {
+            background: rgba(128, 128, 128, 0.12);
+            border-radius: 999px;
+        }
+
+        #MoonfinConfigPage .homeLayoutList::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: rgba(0, 164, 220, 0.7);
+        }
+
+        #MoonfinConfigPage .homeLayoutRow,
+        #MoonfinConfigPage .homeAvailableRow {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto auto;
+            align-items: center;
+            gap: 6px;
+            min-height: 34px;
+            padding: 4px 6px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            margin-bottom: 5px;
+            background: rgba(128, 128, 128, 0.06);
+            box-shadow: inset 3px 0 0 rgba(128, 128, 128, 0.22);
+        }
+
+        #MoonfinConfigPage .homeAvailableRow {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        #MoonfinConfigPage .homeAvailableRow.is-added {
+            opacity: 0.48;
+            background: rgba(128, 128, 128, 0.04);
+        }
+
+        #MoonfinConfigPage .homeAvailableRow.is-added:hover {
+            background: rgba(128, 128, 128, 0.04);
+        }
+
+        #MoonfinConfigPage .homeLayoutRow {
+            cursor: pointer;
+        }
+
+        #MoonfinConfigPage .homeLayoutRow:hover,
+        #MoonfinConfigPage .homeAvailableRow:hover {
+            background: rgba(128, 128, 128, 0.12);
+        }
+
+        #MoonfinConfigPage .homeLayoutRow.is-selected {
+            border-color: rgba(0, 164, 220, 0.72);
+            background: rgba(0, 164, 220, 0.16);
+            box-shadow: inset 3px 0 0 rgba(0, 164, 220, 0.95);
+        }
+
+        #MoonfinConfigPage .homeLayoutRowText,
+        #MoonfinConfigPage .homeAvailableRowText {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        #MoonfinConfigPage .homeLayoutRowTitle,
+        #MoonfinConfigPage .homeAvailableRowTitle {
+            overflow: hidden;
+            color: inherit;
+            font-size: 0.9em;
+            line-height: 1.2;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge {
+            display: inline-flex;
+            align-items: center;
+            max-width: 150px;
+            min-height: 18px;
+            padding: 1px 7px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 999px;
+            font-size: 0.7em;
+            font-weight: 600;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-builtin {
+            border-color: rgba(128, 128, 128, 0.34);
+            background: rgba(128, 128, 128, 0.14);
+            color: inherit;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-collections {
+            border-color: rgba(0, 164, 220, 0.38);
+            background: rgba(0, 164, 220, 0.16);
+            color: #00a4dc;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-playlists {
+            border-color: rgba(34, 197, 94, 0.42);
+            background: rgba(34, 197, 94, 0.16);
+            color: #22c55e;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-genres {
+            border-color: rgba(245, 158, 11, 0.44);
+            background: rgba(245, 158, 11, 0.16);
+            color: #f59e0b;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-seerr {
+            border-color: rgba(168, 85, 247, 0.5);
+            background: rgba(168, 85, 247, 0.18);
+            color: #a855f7;
+        }
+
+        #MoonfinConfigPage .homeLayoutBadge-dynamic {
+            border-color: rgba(168, 85, 247, 0.4);
+            background: rgba(168, 85, 247, 0.14);
+            color: #a855f7;
+        }
+
+        #MoonfinConfigPage .homeLayoutIconButton,
+        #MoonfinConfigPage .homeLayoutAddButton,
+        #MoonfinConfigPage .homeLayoutTabButton {
+            border: 1px solid rgba(128, 128, 128, 0.32);
+            border-radius: 4px;
+            background: rgba(128, 128, 128, 0.1);
+            color: inherit;
+            cursor: pointer;
+            font-size: 0.82em;
+            line-height: 1.2;
+        }
+
+        #MoonfinConfigPage .homeLayoutIconButton:hover,
+        #MoonfinConfigPage .homeLayoutAddButton:hover,
+        #MoonfinConfigPage .homeLayoutTabButton:hover {
+            border-color: rgba(128, 128, 128, 0.5);
+            background: rgba(128, 128, 128, 0.18);
+        }
+
+        #MoonfinConfigPage .homeLayoutIconButton {
+            width: 26px;
+            height: 24px;
+            padding: 0;
+        }
+
+        #MoonfinConfigPage .homeLayoutAddButton {
+            min-width: 46px;
+            padding: 3px 8px;
+        }
+
+        #MoonfinConfigPage .homeLayoutIconButton:disabled,
+        #MoonfinConfigPage .homeLayoutAddButton:disabled {
+            cursor: default;
+            opacity: 0.42;
+        }
+
+        #MoonfinConfigPage .homeLayoutTabs {
+            display: flex;
+            align-items: flex-end;
+            gap: 0;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.28);
+        }
+
+        #MoonfinConfigPage .homeLayoutTabButton {
+            margin: 0 2px -1px 0;
+            padding: 6px 10px;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            background: rgba(128, 128, 128, 0.07);
+        }
+
+        #MoonfinConfigPage .homeLayoutTabButton.is-active {
+            border-color: rgba(0, 164, 220, 0.65);
+            border-bottom-color: transparent;
+            background: rgba(0, 164, 220, 0.18);
+            color: #00a4dc;
+        }
+
+        #MoonfinConfigPage .homeLayoutSearch {
+            box-sizing: border-box;
+            width: 100%;
+            margin-bottom: 8px;
+            padding: 7px 8px;
+            border: 1px solid rgba(128, 128, 128, 0.28);
+            border-radius: 4px;
+            background: rgba(128, 128, 128, 0.08);
+            color: inherit;
+        }
+
+        #MoonfinConfigPage .homeLayoutEmpty {
+            padding: 12px 8px;
+            color: rgba(128, 128, 128, 0.8);
+            font-size: 0.88em;
+        }
+
+    </style>
+        <div class="scrollSlider flex-grow flex-direction-column padded-left padded-left-page padded-right padded-top-page padded-bottom-page">
+            <div class="content-primary">
+                <form id="MoonfinConfigForm">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">Moonfin Settings</h2>
+                    </div>
+
+                    <div class="moonfinAdminShell">
+                    <nav class="moonfinAdminNav" aria-label="Moonfin settings categories">
+                        <div class="moonfinNavBrand">
+                            <img id="MoonfinBrandLogo" class="moonfinNavLogo" alt="Moonfin" />
+                            <span class="moonfinNavBrandText">Moonfin</span>
+                        </div>
+                        <button type="button" class="moonfinNavItem is-active" data-tab="general">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">General</span><span class="moonfinNavSub">Sync &amp; web client</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="integrations">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integrations</span><span class="moonfinNavSub">Seerr, MDBList, TMDB</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="games">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.58 16.09l-1.09-7.66C20.21 6.46 18.52 5 16.53 5H7.47C5.48 5 3.79 6.46 3.51 8.43l-1.09 7.66C2.2 17.63 3.39 19 4.94 19c.68 0 1.32-.27 1.8-.75L9 15h6l2.25 3.25c.48.48 1.13.75 1.8.75 1.56 0 2.75-1.37 2.53-2.91zM11 11H9v2H8v-2H6v-1h2V8h1v2h2v1zm4-1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2 3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Games</span><span class="moonfinNavSub">Retro / EmulatorJS</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="defaults">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">User defaults</span><span class="moonfinNavSub">Force client settings</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="themes">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Themes</span><span class="moonfinNavSub">Upload &amp; catalog</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="actions">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 11v2h4v-2h-4zm-2 6.61c.96.71 2.21 1.65 3.2 2.39.4-.53.8-1.07 1.2-1.6-.99-.74-2.24-1.68-3.2-2.4-.4.54-.8 1.08-1.2 1.61zM20.4 5.6c-.4-.53-.8-1.07-1.2-1.6-.99.74-2.24 1.68-3.2 2.4.4.53.8 1.07 1.2 1.6.96-.72 2.21-1.65 3.2-2.4zM4 9c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1v4h2v-4h1l5 3V6L8 9H4zm11.5 3c0-1.33-.58-2.53-1.5-3.35v6.69c.92-.81 1.5-2.01 1.5-3.34z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Actions</span><span class="moonfinNavSub">Apply &amp; broadcast</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="help">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Help</span><span class="moonfinNavSub">Opening Moonfin</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="syncs">
+                            <svg class="moonfinNavIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Active Downloads</span><span class="moonfinNavSub">Background transcodes</span></span>
+                        </button>
+                    </nav>
+                    <div class="moonfinAdminMain">
+                    <div class="moonfinSearch">
+                        <svg class="moonfinSearchIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="search" id="MoonfinSettingsSearch" class="moonfinSearchInput" placeholder="Search settings" autocomplete="off" />
+                    </div>
+                    <section class="moonfinTabPanel is-active" data-tab="general">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">General</h3>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="EnableSettingsSync" is="emby-checkbox" />
+                                <span>Enable Settings Sync</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Allow Moonfin clients to sync their settings across devices via this server.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Moonfin Web Client</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">Default Server URL (Optional)</label>
+                            <input type="url" id="WebDefaultServerUrl" is="emby-input" placeholder="https://emby.example.com" />
+                            <div class="fieldDescription">
+                                Pre-fills the Add Server dialog in Moonfin web.
+                                Leave empty to auto-fill from the current Emby origin.
+                                Use the Emby base URL (for example, <code>http://192.168.1.10:8096</code>), not <code>/web</code>.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="WebForcedServerUrl">Forced Server URL (Optional)</label>
+                            <input type="url" id="WebForcedServerUrl" is="emby-input" placeholder="https://emby.example.com" />
+                            <div class="fieldDescription">
+                                Forces Moonfin web to auto-connect to this URL on load.
+                                Leave empty to use plugin-mode auto-connect behavior.
+                                Use the Emby base URL and do not include a <code>/web</code> suffix.
+                            </div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="WebEnableWebRtcScan" is="emby-checkbox" />
+                                <span>Enable WebRTC Private Subnet Scan</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Allows Moonfin web to scan private LAN ranges via WebRTC hints.
+                                Disable if your browser environment blocks or restricts WebRTC.
+                            </div>
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="integrations">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Seerr Integration</h3>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="SeerrEnabled" is="emby-checkbox" />
+                                <span>Enable Seerr</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Enable Seerr integration for all users. Moonfin handles authentication through a server-side proxy so users can sign in once and stay authenticated across clients.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="SeerrUrl">Seerr URL</label>
+                            <input type="url" id="SeerrUrl" is="emby-input" placeholder="https://seerr.example.com" />
+                            <div class="fieldDescription">
+                                <strong>Where Emby can reach your Seerr server.</strong>
+                                Start the address with <code>http://</code> or <code>https://</code>. Examples:
+                                <ul style="margin: 0.4em 0 0.4em 1.2em;">
+                                    <li><code>http://192.168.1.10:5055</code> (another machine on your network)</li>
+                                    <li><code>http://seerr:5055</code> (Docker, on the same network as Emby)</li>
+                                    <li><code>https://requests.example.com</code> (a public address)</li>
+                                </ul>
+                                This is the address the <em>Emby server</em> connects to behind the scenes, not the one you
+                                open in a web browser, so a local network or Docker address works fine. You do not enter a
+                                username, password, or API key here; people sign in later from the app.
+                                <br /><br />
+                                <strong>Advanced:</strong> If a reverse proxy in front of Seerr shows its own login page,
+                                let the Emby server through it. If Emby itself sits behind a reverse proxy, make sure
+                                that proxy forwards <code>/Moonfin/</code> requests to Emby.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="SeerrDisplayName">Display Name (Optional)</label>
+                            <input type="text" id="SeerrDisplayName" is="emby-input" placeholder="Auto-detected" />
+                            <div class="fieldDescription">
+                                <strong>Optional override.</strong> The name shown in the UI (e.g., "Requests", "Media Requests").
+                                Leave blank to auto-detect from the configured URL.
+                                The icon is always auto-detected regardless of this setting.
+                            </div>
+                        </div>
+                        <div style="background-color: rgba(0, 164, 220, 0.1); border-left: 4px solid #00a4dc; border-radius: 4px; padding: 1em 1.5em; margin: 1em 0;">
+                            <strong>SSO Proxy:</strong> When Seerr is enabled, Moonfin provides single sign-on.
+                            Users authenticate once with their Emby credentials, and the session is stored server-side.
+                            All Moonfin clients access Seerr API through <code>/Moonfin/Seerr/Api/</code>
+                            without re-authenticating.
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">MDBList Integration</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MdblistApiKey">Server-wide MDBList API Key</label>
+                            <input type="password" id="MdblistApiKey" is="emby-input" placeholder="Enter your mdblist.com API key" />
+                            <div class="fieldDescription">
+                                Provide a server-wide <a href="https://mdblist.com/preferences/" target="_blank">MDBList API key</a>
+                                that all users can use for ratings (IMDb, Rotten Tomatoes, Metacritic, etc.).
+                                Users who set their own key in their Moonfin client settings will use that instead.
+                                This key also powers the MDBList official list home rows (IMDb Top 250, Most Popular, and similar charts),
+                                which the "Moonfin MDBList Official Lists Sync" scheduled task fetches and caches on the server.
+                            </div>
+                        </div>
+                        <div class="checkboxContainer">
+                            <label>
+                                <input type="checkbox" id="ImdbListsEnabled" is="emby-checkbox" />
+                                <span>Enable IMDb chart home rows</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Fetches IMDb charts (Top 250 movies/TV, Most Popular, and similar) on a schedule so clients
+                                can show them as home rows and custom rows can resolve the IMDb source. No API key required.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">TMDB Integration</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">Server-wide TMDB API Key</label>
+                            <input type="password" id="TmdbApiKey" is="emby-input" placeholder="Enter your TMDB API key or v4 token" />
+                            <div class="fieldDescription">
+                                Provide a server-wide <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB API key</a>
+                                that all users can use for episode ratings.
+                                Users who set their own key in their Moonfin client settings will use that instead.
+                                Supports both v3 API keys and v4 Bearer tokens.
+                                This key is also used to fetch posters for the MDBList official list home rows. Without it,
+                                those rows still work but show titles without artwork.
+                            </div>
+                        </div>
+                        <div class="checkboxContainer">
+                            <label>
+                                <input type="checkbox" id="StudioLogosEnabled" is="emby-checkbox" />
+                                <span>Enable studio logo sync</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Pre-warms the studio (production company) logo cache from TMDB on a schedule so clients can
+                                show studio logos on the details screen. Uses the server-wide TMDB key above.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Push Notifications (Optional)</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="FcmServiceAccountJson">Firebase Service Account JSON</label>
+                            <textarea id="FcmServiceAccountJson" is="emby-textarea" rows="4" placeholder="Paste the full service-account JSON to send push directly via FCM"></textarea>
+                            <div class="fieldDescription">
+                                Optional. Paste a Firebase service-account JSON to send Seerr push notifications directly
+                                through FCM from this server. Leave empty to use the hosted Moonfin push relay instead.
+                                Secret: never logged.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="FcmServiceAccountPath">Service Account File Path (Optional)</label>
+                            <input type="text" id="FcmServiceAccountPath" is="emby-input" placeholder="/path/to/service-account.json" />
+                            <div class="fieldDescription">
+                                Optional path to a service-account JSON file on the server. When both this and the JSON above
+                                are set, the file path wins.
+                            </div>
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="games">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Retro Games (EmulatorJS)</h3>
+                        <div class="checkboxContainer">
+                            <label>
+                                <input type="checkbox" id="GamesEnabled" is="emby-checkbox" />
+                                <span>Enable retro games</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Lets Moonfin clients browse and play ROMs from a "Mixed Content" library using
+                                <a href="https://github.com/EmulatorJS/EmulatorJS" target="_blank">EmulatorJS</a>.
+                                Organize ROMs as <code>System/&lt;game&gt;/rom.ext</code> with any BIOS files at the
+                                top of each system folder. No setup is needed for the emulator itself: cores stream
+                                from the EmulatorJS CDN by default.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Emulator cores</label>
+                            <div class="fieldDescription">
+                                <strong>Online (default):</strong> cores stream from the EmulatorJS CDN. Zero setup,
+                                but each client needs internet access when a game launches.<br>
+                                <strong>Offline (self-host):</strong> install the cores on this server once so clients
+                                play with no internet and lower latency. Use either option below; clients switch to
+                                the local copy automatically once it is installed.
+                            </div>
+                            <div style="margin-top:8px;">
+                                <span id="GameCoresStatus" style="font-size:0.9em;opacity:0.7;">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Upload cores zip</label>
+                            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <input type="file" id="GameCoresFile" accept=".zip" />
+                                <button type="button" id="GameCoresUploadBtn" is="emby-button" class="raised">Upload &amp; install</button>
+                            </div>
+                            <div class="fieldDescription">
+                                Upload an EmulatorJS <code>data</code> folder zipped up (the zip must contain
+                                <code>loader.js</code> somewhere inside). Get it from
+                                <a href="https://github.com/EmulatorJS/EmulatorJS/releases/latest" target="_blank">EmulatorJS releases</a>
+                                (extract the archive and zip its <code>data</code> folder). ~290&nbsp;MB.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="GamesCoreZipUrl">Or download from a zip URL</label>
+                            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <input type="url" id="GamesCoreZipUrl" is="emby-input" placeholder="https://.../emulatorjs-data.zip" style="flex:1;min-width:240px;" />
+                                <button type="button" id="GameCoresInstallBtn" is="emby-button" class="raised">Download to server</button>
+                            </div>
+                            <div class="fieldDescription">
+                                Downloads the zip in the background. Leave the URL blank to use an
+                                <code>emulatorjs-data.zip</code> asset on the plugin's GitHub release. Click Save below
+                                to persist the URL.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Game libraries</label>
+                            <div id="GameLibraryPicker" style="max-height:200px;overflow-y:auto;border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px;"></div>
+                            <div class="fieldDescription">
+                                Select the libraries that hold your game ROMs, then click Save below. If none are
+                                selected, libraries whose name contains "game", "rom", or "emulat" are auto-detected.
+                            </div>
+                        </div>
+                        <div class="fieldDescription">
+                            Box art is fetched automatically from the keyless
+                            <a href="https://thumbnails.libretro.com/" target="_blank">libretro thumbnail server</a>
+                            (matched by game name); no API keys or accounts are needed.
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="defaults">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Default User Settings</h3>
+                        <div class="fieldDescription" style="margin-bottom: 1em;">
+                            Configure default Moonfin settings for all users. New users and users who haven't customized
+                            a setting will see these values. Users can always override defaults in their own Moonfin settings panel.
+                        </div>
+
+                        <div style="background-color: rgba(0, 164, 220, 0.1); border-left: 4px solid #00a4dc; border-radius: 4px; padding: 0.8em 1.2em; margin-bottom: 1.2em; font-size: 0.9em;">
+                            <strong>How it works:</strong> These are the lowest-priority fallback. Resolution order:
+                            User's device profile &rarr; User's global settings &rarr; <strong>These admin defaults</strong> &rarr; Built-in defaults.
+                        </div>
+
+                        <div style="background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; border-radius: 4px; padding: 0.8em 1.2em; margin-bottom: 1.2em; font-size: 0.9em;">
+                            <strong>Important:</strong> New nullable settings use <strong>Not set / Yes / No</strong> style inputs.
+                            <strong>Not set</strong> means "do not force this value" so users keep their own choice.
+                        </div>
+
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Appearance</h4>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultVisualTheme">App Theme</label>
+                            <select id="DefaultVisualTheme" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="moonfin">Moonfin</option>
+                                <option value="neonPulse">Neon Pulse</option>
+                            </select>
+                            <div class="fieldDescription">Default overall app style. Keep Not set to let users choose.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDetailScreenStyle">Detail Screen Style</label>
+                            <select id="DefaultDetailScreenStyle" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="classic">Classic</option>
+                                <option value="modern">Modern</option>
+                            </select>
+                            <div class="fieldDescription">Default layout for item detail pages. Keep Not set to let users choose.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDetailExpandedTabs">Detail Screen Expanded Tabs</label>
+                            <select id="DefaultDetailExpandedTabs" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                            <div class="fieldDescription">When on, detail screen tabs start expanded and moving focus between them reveals their content without pressing select. When off, tabs start collapsed and open on press. Keep Not set to let users choose.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultFocusColor">Focus Highlight Color</label>
+                            <select id="DefaultFocusColor" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="white">White</option>
+                                <option value="black">Black</option>
+                                <option value="gray">Gray</option>
+                                <option value="darkBlue">Dark Blue</option>
+                                <option value="purple">Purple</option>
+                                <option value="teal">Teal</option>
+                                <option value="navy">Navy</option>
+                                <option value="charcoal">Charcoal</option>
+                                <option value="brown">Brown</option>
+                                <option value="darkRed">Dark Red</option>
+                                <option value="darkGreen">Dark Green</option>
+                                <option value="slate">Slate</option>
+                                <option value="indigo">Indigo</option>
+                                <option value="moonfinCyan">Moonfin Cyan</option>
+                                <option value="neonPulseMagenta">Neon Pulse Magenta</option>
+                            </select>
+                            <div class="fieldDescription">Color used for focused cards and controls.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultWatchedIndicator">Watched Indicator</label>
+                            <select id="DefaultWatchedIndicator" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="always">Always</option>
+                                <option value="hideUnwatched">Hide Unwatched</option>
+                                <option value="episodesOnly">Episodes Only</option>
+                                <option value="never">Never</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultCardFocusExpansion">Scale Focused Cards</label>
+                            <select id="DefaultCardFocusExpansion" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultScreensaverMode">Screensaver Mode</label>
+                            <select id="DefaultScreensaverMode" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="off">Off</option>
+                                <option value="logo">Logo</option>
+                                <option value="library">Library</option>
+                            </select>
+                        </div>
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Navigation</h4>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarPosition">Default Navbar Position</label>
+                            <select id="DefaultNavbarPosition" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="top">Top</option>
+                                <option value="left">Left (Sidebar)</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarColor">Navigation Bar Accent Color</label>
+                            <select id="DefaultNavbarColor" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="white">White</option>
+                                <option value="black">Black</option>
+                                <option value="gray">Gray</option>
+                                <option value="darkBlue">Dark Blue</option>
+                                <option value="purple">Purple</option>
+                                <option value="teal">Teal</option>
+                                <option value="navy">Navy</option>
+                                <option value="charcoal">Charcoal</option>
+                                <option value="brown">Brown</option>
+                                <option value="darkRed">Dark Red</option>
+                                <option value="darkGreen">Dark Green</option>
+                                <option value="slate">Slate</option>
+                                <option value="indigo">Indigo</option>
+                                <option value="moonfinCyan">Moonfin Cyan</option>
+                                <option value="neonPulseMagenta">Neon Pulse Magenta</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarOpacity">Navigation Bar Opacity (0-100)</label>
+                            <input type="number" id="DefaultNavbarOpacity" is="emby-input" min="0" max="100" step="1" placeholder="Not set" />
+                        </div>
+
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Media Bar</h4>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarSourceType">Media Bar Content Source</label>
+                            <select id="DefaultMediaBarSourceType" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="library">Library (Random)</option>
+                                <option value="collection">Collections / Playlists</option>
+                            </select>
+                            <div class="fieldDescription">Default content source for the media bar. Users can override this.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarMode">Media Bar Style</label>
+                            <select id="DefaultMediaBarMode" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="moonfin">Moonfin</option>
+                                <option value="makd">MA KD</option>
+                                <option value="off">Off</option>
+                            </select>
+                            <div class="fieldDescription">Visual style/mode for the media bar.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarTrailerAudio">Trailer Audio In Media Bar</label>
+                            <select id="DefaultMediaBarTrailerAudio" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div id="DefaultCollectionPickerSection" style="display:none;">
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused">Default Collections / Playlists</label>
+                                <div class="fieldDescription" style="margin-bottom:0.5em;">Select which collections or playlists to show in the media bar by default. Users can override this in their own settings. Note: users who don't have access to a selected collection will simply not see those items.</div>
+                                <div id="DefaultCollectionPicker" style="max-height:200px;overflow-y:auto;border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px;"></div>
+                            </div>
+                        </div>
+                        <div id="DefaultLibraryPickerSection" style="display:none;">
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused">Default Libraries</label>
+                                <div class="fieldDescription" style="margin-bottom:0.5em;">Optionally select specific libraries for the media bar. Leave all unchecked to use all libraries. Users can override this.</div>
+                                <div id="DefaultLibraryPicker" style="max-height:200px;overflow-y:auto;border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px;"></div>
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Default Excluded Genres</label>
+                            <div class="fieldDescription" style="margin-bottom:0.5em;">Select genres to exclude from the media bar by default. Items with any of these genres will not appear. Users can override this.</div>
+                            <div id="DefaultGenrePicker" style="max-height:200px;overflow-y:auto;border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px;"></div>
+                        </div>
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Home Screen</h4>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultHomeRowsStyle">Home Rows Style</label>
+                            <select id="DefaultHomeRowsStyle" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="v1">Classic</option>
+                                <option value="v2">Modern</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultFullScreenRows">Expanded Rows</label>
+                            <select id="DefaultFullScreenRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultUseDetailedSubHeadings">Detailed Sub-Headings</label>
+                            <select id="DefaultUseDetailedSubHeadings" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultHomeImageTypeContinueWatching">Continue Watching Image Type</label>
+                            <select id="DefaultHomeImageTypeContinueWatching" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="Primary">Poster</option>
+                                <option value="Backdrop">Backdrop</option>
+                                <option value="Thumb">Thumbnail</option>
+                                <option value="Banner">Banner</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultPosterSize">Card Size</label>
+                            <select id="DefaultPosterSize" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                                <option value="extraLarge">Extra Large</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplayFavoritesRows">Show Favorites Rows</label>
+                            <select id="DefaultDisplayFavoritesRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplayCollectionsRows">Show Collections Rows</label>
+                            <select id="DefaultDisplayCollectionsRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplayGenresRows">Show Genres Rows</label>
+                            <select id="DefaultDisplayGenresRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplaySeerrRows">Show Seerr Rows</label>
+                            <select id="DefaultDisplaySeerrRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplayPlaylistsRows">Show Playlists Rows</label>
+                            <select id="DefaultDisplayPlaylistsRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultDisplayAudioRows">Show Audio Rows</label>
+                            <select id="DefaultDisplayAudioRows" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultFavoritesRowSortBy">Favorites Row Sort</label>
+                            <select id="DefaultFavoritesRowSortBy" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="name">Name</option>
+                                <option value="dateAdded">Date Added</option>
+                                <option value="premiereDate">Premiere Date</option>
+                                <option value="rating">Rating</option>
+                                <option value="runtime">Runtime</option>
+                                <option value="random">Random</option>
+                                <option value="criticRating">Critic Rating</option>
+                                <option value="communityRating">Community Rating</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultCollectionsRowSortBy">Collections Row Sort</label>
+                            <select id="DefaultCollectionsRowSortBy" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="name">Name</option>
+                                <option value="dateAdded">Date Added</option>
+                                <option value="premiereDate">Premiere Date</option>
+                                <option value="rating">Rating</option>
+                                <option value="runtime">Runtime</option>
+                                <option value="random">Random</option>
+                                <option value="criticRating">Critic Rating</option>
+                                <option value="communityRating">Community Rating</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultGenresRowSortBy">Genres Row Sort</label>
+                            <select id="DefaultGenresRowSortBy" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="name">Name</option>
+                                <option value="dateAdded">Date Added</option>
+                                <option value="premiereDate">Premiere Date</option>
+                                <option value="rating">Rating</option>
+                                <option value="runtime">Runtime</option>
+                                <option value="random">Random</option>
+                                <option value="criticRating">Critic Rating</option>
+                                <option value="communityRating">Community Rating</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultGenresRowItemFilter">Genres Row Item Filter</label>
+                            <select id="DefaultGenresRowItemFilter" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="movies">Movies</option>
+                                <option value="series">Series</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultHomeImageUseSeriesImage">Series Thumbnails</label>
+                            <select id="DefaultHomeImageUseSeriesImage" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                            <div class="fieldDescription">Use series thumbnails on home rows by default.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Default Home Layout</label>
+                            <div class="fieldDescription" style="margin-bottom:0.75em;">Choose active default home sections and their order. This builder only changes the layout; row visibility and sorting stay in the settings above.</div>
+                            <div class="homeLayoutBuilder">
+                                <div class="homeLayoutPanel">
+                                    <h5 class="homeLayoutPanelTitle">Current Layout</h5>
+                                    <div id="DefaultHomeRowOrder" class="homeLayoutList"></div>
+                                </div>
+                                <div class="homeLayoutPanel">
+                                    <h5 class="homeLayoutPanelTitle">Available Rows</h5>
+                                    <div id="DefaultHomeAvailableTabs" class="homeLayoutTabs"></div>
+                                    <input id="DefaultHomeAvailableSearch" class="homeLayoutSearch" type="search" placeholder="Search rows" />
+                                    <div id="DefaultHomeAvailableRows" class="homeLayoutList"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultMergeContinueWatchingNextUp" is="emby-checkbox" />
+                                <span>Merge Continue Watching &amp; Next Up</span>
+                            </label>
+                            <div class="fieldDescription">Combine Continue Watching and Next Up into a single home row by default.</div>
+                        </div>
+
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Toolbar Buttons</h4>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowShuffleButton" is="emby-checkbox" />
+                                <span>Shuffle Button</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowGenresButton" is="emby-checkbox" />
+                                <span>Genres Button</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowFavoritesButton" is="emby-checkbox" />
+                                <span>Favorites Button</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowCastButton" is="emby-checkbox" />
+                                <span>Cast Button</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowSyncPlayButton" is="emby-checkbox" />
+                                <span>SyncPlay Button</span>
+                            </label>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultShowLibrariesInToolbar" is="emby-checkbox" />
+                                <span>Library Shortcuts</span>
+                            </label>
+                        </div>
+
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Previews</h4>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarTrailerPreview">Trailer Preview in Media Bar</label>
+                            <select id="DefaultMediaBarTrailerPreview" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultEpisodePreviewEnabled">Episode Previews On Hover</label>
+                            <select id="DefaultEpisodePreviewEnabled" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultPreviewAudioEnabled">Preview Audio</label>
+                            <select id="DefaultPreviewAudioEnabled" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+
+                        <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Integrations</h4>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultMdblistEnabled" is="emby-checkbox" />
+                                <span>MDBList Ratings</span>
+                            </label>
+                            <div class="fieldDescription">Enable MDBList ratings by default (requires server-wide or user API key).</div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="DefaultTmdbEpisodeRatingsEnabled" is="emby-checkbox" />
+                                <span>TMDB Episode Ratings</span>
+                            </label>
+                            <div class="fieldDescription">Enable TMDB episode ratings by default (requires server-wide or user API key).</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultMdblistShowRatingBadges">Show MDBList Rating Badges</label>
+                            <select id="DefaultMdblistShowRatingBadges" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Default Rating Sources &amp; Order</label>
+                            <div class="fieldDescription" style="margin-bottom:0.5em;">Check which ratings to display and drag or use the arrows to set their order. Leave all unchecked to use each user's own choice.</div>
+                            <div id="DefaultMdblistRatingSourcesList" style="border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:4px;"></div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DefaultSeerrBlockNsfw">Block NSFW In Seerr</label>
+                            <select id="DefaultSeerrBlockNsfw" is="emby-select">
+                                <option value="">Not set (user decides)</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="themes">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Uploaded Themes</h3>
+                        <div class="fieldDescription" style="margin-bottom: 0.8em;">
+                            Upload theme editor JSON exports so Moonfin clients can download and apply them.
+                            Uploaded themes are synced to Mobile-Desktop, tvOS, and Smart-TV through plugin sync.
+                        </div>
+                        <div style="background-color: rgba(0, 164, 220, 0.1); border-left: 4px solid #00a4dc; border-radius: 4px; padding: 0.8em 1.2em; margin-bottom: 1em; font-size: 0.9em;">
+                            <strong>Validation:</strong> The server validates theme schema and field ranges on upload.
+                            Fix any listed field-path errors in the theme editor, then upload again.
+                        </div>
+                        <input type="file" id="AdminThemeFileInput" accept="application/json,.json" style="display:none;" />
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.6em; margin-bottom:0.8em;">
+                            <button is="emby-button" type="button" id="AdminThemeChooseBtn" class="raised">
+                                <span>Choose JSON File</span>
+                            </button>
+                            <span id="AdminThemeChosenFile" style="font-size:0.9em; opacity:0.75;">No file selected</span>
+                            <button is="emby-button" type="button" id="AdminThemeUploadBtn" class="raised" disabled>
+                                <span>Upload Theme</span>
+                            </button>
+                        </div>
+                        <div id="AdminThemeUploadResult" class="fieldDescription" style="display:none; margin-bottom:0.9em;"></div>
+                        <div class="inputContainer" style="margin-bottom:0;">
+                            <label class="inputLabel inputLabelUnfocused">Uploaded Theme Catalog</label>
+                            <div id="AdminThemesList" style="max-height:260px;overflow-y:auto;border:1px solid rgba(128,128,128,0.3);border-radius:4px;padding:6px;"></div>
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="actions">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Push Defaults To Existing Users</h3>
+                        <div class="fieldDescription" style="margin-bottom: 0.8em;">
+                            Apply the configured defaults above to every existing user now.
+                            Only fields that are set (not "Not set") will be merged into user global settings.
+                            Save your default settings first if you made changes.
+                        </div>
+                        <div style="background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; border-radius: 4px; padding: 0.8em 1.2em; margin-bottom: 1em; font-size: 0.9em;">
+                            <strong>Warning:</strong> This action updates existing user profiles immediately for all set fields.
+                            Device-specific profile overrides are not touched.
+                        </div>
+                        <button is="emby-button" type="button" id="PushDefaultsBtn" class="raised">
+                            <span>Apply Defaults To All Users Now</span>
+                        </button>
+                        <div id="PushDefaultsResult" class="fieldDescription" style="display:none; margin-top:0.8em;"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Broadcast Message</h3>
+                        <div class="fieldDescription" style="margin-bottom: 0.8em;">
+                            Send a live message to all currently connected Moonfin clients.
+                            This message is not saved and only appears for users with an active connection.
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="BroadcastMessageText">Message</label>
+                            <input type="text" id="BroadcastMessageText" is="emby-input" maxlength="500" placeholder="Type a message to display" />
+                        </div>
+                        <button is="emby-button" type="button" id="BroadcastMessageBtn" class="raised">
+                            <span>Send Message</span>
+                        </button>
+                        <div id="BroadcastMessageResult" class="fieldDescription" style="display:none; margin-top:0.8em;"></div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="help">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Opening Moonfin</h3>
+                        <div class="fieldDescription" style="margin-bottom: 1em;">
+                            <p>
+                                Open Moonfin directly at <code>/Moonfin/Web/</code> on your Emby server.
+                            </p>
+                            <p style="margin-top: 0.5em;">
+                                Example: <code>http://192.168.1.10:8096/Moonfin/Web/</code>
+                            </p>
+                            <p style="margin-top: 0.5em;">
+                                <strong>Note:</strong> The header-button injection available in the Jellyfin version
+                                is not available in the Emby version. Navigate to the URL above directly.
+                            </p>
+                        </div>
+                    </div>
+
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="syncs">
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Active Downloads</h3>
+                        <div class="fieldDescription" style="margin-bottom: 1em;">
+                            Transcoded downloads Moonfin clients have in progress. Regular playback transcodes
+                            are hidden here since they already show on the Emby dashboard.
+                        </div>
+                        <div class="paperList" id="MoonfinActiveSyncsList" style="margin-top:1em; display:flex; flex-direction:column; gap:10px;">
+                            <div style="padding:16px; text-align:center; color:rgba(255,255,255,0.5);">Loading...</div>
+                        </div>
+                    </div>
+                    </section>
+                    <div class="moonfinSaveBar">
+                        <button is="emby-button" type="submit" class="raised button-submit block">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                    </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>

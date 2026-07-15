@@ -1,0 +1,16 @@
+bin/
+obj/
+release/
+*.zip
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+.DS_Store
+Thumbs.db
+
+# Flutter web drop folder — not tracked; copy from Moonfin-Core
+web/*
+!web/.gitkeep
