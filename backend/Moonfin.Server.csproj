@@ -33,12 +33,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Web\loader.js" />
-    <EmbeddedResource Include="Web\inject.html" />
-    <EmbeddedResource Include="Pages\configPage.html" />
-    <EmbeddedResource Include="EmulatorJS\player.html" />
-    <EmbeddedResource Include="assets\*.png" />
-    <EmbeddedResource Include="assets\*.svg" />
+    <EmbeddedResource Include="Web/loader.js" LogicalName="Moonfin.Server.Web.loader.js" />
+    <EmbeddedResource Include="Web/inject.html" LogicalName="Moonfin.Server.Web.inject.html" />
+    <EmbeddedResource Include="Pages/configPage.html" LogicalName="Moonfin.Server.Pages.configPage.html" />
+    <EmbeddedResource Include="EmulatorJS/player.html" LogicalName="Moonfin.Server.EmulatorJS.player.html" />
+    <EmbeddedResource Include="assets/*.png">
+      <LogicalName>Moonfin.Server.assets.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="assets/*.svg">
+      <LogicalName>Moonfin.Server.assets.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
+
+  <Target Name="ValidateEmbeddedResourceSources" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('Pages/configPage.html')" Text="Required embedded resource Pages/configPage.html was not found." />
+    <Error Condition="!Exists('Web/loader.js')" Text="Required embedded resource Web/loader.js was not found." />
+    <Error Condition="!Exists('Web/inject.html')" Text="Required embedded resource Web/inject.html was not found." />
+    <Error Condition="!Exists('EmulatorJS/player.html')" Text="Required embedded resource EmulatorJS/player.html was not found." />
+  </Target>
 
 </Project>
