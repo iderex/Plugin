@@ -6,6 +6,7 @@ TARGET_ABI="${2:-4.9.1.90}"
 PROJECT="Emby.Plugins.Moonfin/Emby.Plugins.Moonfin.csproj"
 OUTPUT_DIR="release"
 PLUGIN_NAME="Emby.Plugins.Moonfin"
+PACKAGE_NAME="Moonfin.Emby"
 
 echo "Building Moonfin Emby Plugin v${VERSION}..."
 
@@ -51,7 +52,7 @@ elif [ -d "Emby.Plugins.Moonfin/web" ] && [ -f "Emby.Plugins.Moonfin/web/index.h
 fi
 
 # Create ZIP
-ZIP_NAME="${PLUGIN_NAME}-${VERSION}.zip"
+ZIP_NAME="${PACKAGE_NAME}-${VERSION}.zip"
 rm -f "$ZIP_NAME"
 cd "$OUTPUT_DIR" && zip -r "../${ZIP_NAME}" . && cd ..
 

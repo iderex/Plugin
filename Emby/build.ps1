@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $ProjectFile = "Emby.Plugins.Moonfin\Emby.Plugins.Moonfin.csproj"
 $PluginName  = "Emby.Plugins.Moonfin"
 $OutputDir   = "release"
+$PackageName = "Moonfin.Emby"
 
 Write-Host "Building Moonfin Emby Plugin v$Version..."
 
@@ -38,7 +39,7 @@ if (Test-Path "web\index.html") {
 }
 
 # Create ZIP
-$ZipName = "$PluginName-$Version.zip"
+$ZipName = "$PackageName-$Version.zip"
 if (Test-Path $ZipName) { Remove-Item $ZipName }
 Compress-Archive -Path "$OutputDir\*" -DestinationPath $ZipName
 

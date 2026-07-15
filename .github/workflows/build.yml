@@ -46,7 +46,7 @@ jobs:
           set -o pipefail
           EMBY_VERSION=$(grep -oPm1 '(?<=<AssemblyVersion>)[^<]+' Emby/Emby.Plugins.Moonfin/Emby.Plugins.Moonfin.csproj)
           echo "version=$EMBY_VERSION" >> "$GITHUB_OUTPUT"
-          echo "zip_name=Emby.Plugins.Moonfin-${EMBY_VERSION}.zip" >> "$GITHUB_OUTPUT"
+          echo "zip_name=Moonfin.Emby-${EMBY_VERSION}.zip" >> "$GITHUB_OUTPUT"
           # build.sh builds the netstandard2.1 plugin and assembles the drop-in zip.
           cd Emby
           bash build.sh "$EMBY_VERSION" 2>&1 | tee "${{ runner.temp }}/emby-build.log"
