@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
@@ -13,6 +14,10 @@ namespace Emby.Plugins.Moonfin.Api
     public class WebService : IService, IRequiresRequest, IHasResultFactory
     {
         private readonly Assembly _assembly = typeof(WebService).Assembly;
+
+        private static readonly Regex BaseHrefRegex = new Regex(
+            "<base\\s+href=\"[^\"]*\"\\s*/?>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public IRequest Request { get; set; } = null!;
         public IHttpResultFactory ResultFactory { get; set; } = null!;
@@ -40,7 +45,7 @@ namespace Emby.Plugins.Moonfin.Api
             return ResultFactory.GetResult(Request, stream, "application/javascript", null);
         }
 
-        public object Get(GetWebConfigRequest request)
+        private object ServeWebConfig()
         {
             var config = Plugin.Instance?.Configuration;
             var runtimeBaseUrl = ResolveRuntimeBaseUrl();
@@ -72,12 +77,20 @@ namespace Emby.Plugins.Moonfin.Api
             }
 
             var requestedPath = string.IsNullOrWhiteSpace(request.Path) ? "index.html" : request.Path;
+
+            // config.json is built per request and has no file on disk. It cannot have its own
+            // route because Emby strips the .json suffix before matching, so serve it here.
+            if (string.Equals(requestedPath, "config.json", StringComparison.OrdinalIgnoreCase))
+            {
+                return ServeWebConfig();
+            }
+
             if (!TryResolvePath(webRoot, requestedPath, out var fullPath))
             { Request.Response.StatusCode = 404; return null!; }
 
             if (File.Exists(fullPath))
             {
-                return ResultFactory.GetStaticFileResult(Request, fullPath);
+                return ServeFile(fullPath);
             }
 
             if (Directory.Exists(fullPath))
@@ -100,7 +113,7 @@ namespace Emby.Plugins.Moonfin.Api
                     }
                     catch { /* fall through to serving the index directly */ }
 
-                    return ResultFactory.GetStaticFileResult(Request, nested);
+                    return ServeFile(nested);
                 }
             }
 
@@ -108,22 +121,90 @@ namespace Emby.Plugins.Moonfin.Api
 
             var indexPath = Path.Combine(webRoot, "index.html");
             if (!File.Exists(indexPath)) { Request.Response.StatusCode = 404; return null!; }
-            return ResultFactory.GetStaticFileResult(Request, indexPath);
+            return ServeFile(indexPath);
+        }
+
+        private object ServeFile(string fullPath)
+        {
+            var html = RewriteBaseHref(fullPath);
+            if (html == null)
+            {
+                return ResultFactory.GetStaticFileResult(Request, fullPath);
+            }
+
+            Request.Response.AddHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+            Request.Response.AddHeader("Pragma", "no-cache");
+            Request.Response.AddHeader("Expires", "0");
+            return ResultFactory.GetResult(Request, ToStream(html), "text/html; charset=utf-8", null);
+        }
+
+        /// <summary>
+        /// The index rewritten to point at the sub-path a reverse proxy mounts Moonfin under, or
+        /// null when the file should be served as it is on disk.
+        /// </summary>
+        private string? RewriteBaseHref(string fullPath)
+        {
+            if (!string.Equals(Path.GetFileName(fullPath), "index.html", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            // The bundle is built with a base href of /Moonfin/Web/, which is already right when the
+            // app is served from the domain root.
+            var prefix = ForwardedPrefix();
+            if (prefix.Length == 0)
+            {
+                return null;
+            }
+
+            // The theme editor ships its own index with no base href, so there is nothing to fix up.
+            var original = File.ReadAllText(fullPath);
+            return BaseHrefRegex.IsMatch(original)
+                ? BaseHrefRegex.Replace(original, _ => $"<base href=\"{prefix}/Moonfin/Web/\">")
+                : null;
         }
 
         private string ResolveRuntimeBaseUrl()
         {
-            var scheme = Request.IsLocal ? "http" : "https";
             var host = Request.Headers["Host"] ?? "localhost";
-            var baseUrl = $"{scheme}://{host}".TrimEnd('/');
+            var baseUrl = $"{ResolveScheme()}://{host}".TrimEnd('/');
 
-            // Honor a reverse-proxy sub-path so Moonfin web served under a mount point
-            // (e.g. /moonfin) builds correct base, asset, and discovery URLs. Emby's request
-            // has no PathBase, so we read the forwarded-prefix header the proxy sets.
+            var prefix = ForwardedPrefix();
+            return prefix.Length == 0 ? baseUrl : baseUrl + prefix;
+        }
+
+        /// <summary>
+        /// The scheme the client actually reached the server on. A reverse proxy reports the public
+        /// scheme through a header, since the hop to Emby is plain http. Without a proxy, the scheme
+        /// of the request itself is what the browser used, so a plain-http LAN server is not handed
+        /// an https URL it does not serve.
+        /// </summary>
+        private string ResolveScheme()
+        {
+            var forwarded = Request.Headers["X-Forwarded-Proto"];
+            if (!string.IsNullOrEmpty(forwarded))
+            {
+                return forwarded.Split(',')[0].Trim().ToLowerInvariant();
+            }
+
+            if (Uri.TryCreate(Request.AbsoluteUri, UriKind.Absolute, out var uri))
+            {
+                return uri.Scheme;
+            }
+
+            return Request.IsLocal ? "http" : "https";
+        }
+
+        /// <summary>
+        /// The sub-path a reverse proxy mounts Moonfin under, or empty when it is served from the
+        /// domain root. Emby's request has no PathBase, so the prefix only reaches us in the header
+        /// the proxy sets.
+        /// </summary>
+        private string ForwardedPrefix()
+        {
             var prefix = Request.Headers["X-Forwarded-Prefix"];
             if (string.IsNullOrEmpty(prefix)) prefix = Request.Headers["X-Forwarded-Path"];
-            prefix = NormalizeForwardedPrefix(prefix);
-            return prefix.Length == 0 ? baseUrl : baseUrl + prefix;
+            return NormalizeForwardedPrefix(prefix);
         }
 
         private static string NormalizeForwardedPrefix(string? prefix)
@@ -159,12 +240,16 @@ namespace Emby.Plugins.Moonfin.Api
             var envOverride = Environment.GetEnvironmentVariable("MOONFIN_WEB_ROOT")?.Trim();
             if (!string.IsNullOrEmpty(envOverride) && Directory.Exists(envOverride)) return Path.GetFullPath(envOverride);
 
-            var assemblyDir = Path.GetDirectoryName(_assembly.Location);
-            if (!string.IsNullOrEmpty(assemblyDir))
+            // The bundle ships as a web/ folder beside the dll in the plugins directory. Emby loads
+            // the dll from memory so _assembly.Location is usually empty, which is why the plugins
+            // path comes first and the assembly directory is only a fallback for hosts that do load
+            // it from disk.
+            foreach (var baseDir in new[] { Plugin.Instance?.PluginsPath, Path.GetDirectoryName(_assembly.Location) })
             {
+                if (string.IsNullOrEmpty(baseDir)) continue;
                 foreach (var folder in new[] { "web", "frontend" })
                 {
-                    var candidate = Path.Combine(assemblyDir, folder);
+                    var candidate = Path.Combine(baseDir, folder);
                     if (Directory.Exists(candidate)) return Path.GetFullPath(candidate);
                 }
             }

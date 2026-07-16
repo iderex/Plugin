@@ -147,8 +147,11 @@ namespace Emby.Plugins.Moonfin.Api
     [Authenticated]
     public class GetSeerrConfigRequest : IReturn<object> { }
 
+    // The web frontend calls this while it is still looking for a server to sign in to, so it has
+    // no token yet.
     [Route("/Moonfin/Discovery", "GET")]
     [Route("/Moonfin/Discovery/discover", "GET")]
+    [Unauthenticated]
     public class DiscoveryRequest : IReturn<object> { }
 
     // PascalCase property names (no JsonPropertyName) so MoonfinJson emits LibraryId/LibraryName/

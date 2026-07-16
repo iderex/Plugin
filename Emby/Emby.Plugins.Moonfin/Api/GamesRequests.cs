@@ -94,9 +94,11 @@ namespace Emby.Plugins.Moonfin.Api
     }
 
     [Route("/Moonfin/EmulatorJS/player.html", "GET")]
+    [Unauthenticated]
     public class GetEmulatorPlayerRequest : IReturn<object> { }
 
     [Route("/Moonfin/EmulatorJS/data/{Path*}", "GET")]
+    [Unauthenticated]
     public class GetEmulatorDataRequest : IReturn<object>
     {
         public string? Path { get; set; }

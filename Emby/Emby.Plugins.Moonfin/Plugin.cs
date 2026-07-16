@@ -102,6 +102,8 @@ namespace Emby.Plugins.Moonfin
 
         public new string DataFolderPath => System.IO.Path.Combine(ApplicationPaths.PluginConfigurationsPath, "Moonfin");
 
+        public string PluginsPath => ApplicationPaths.PluginsPath;
+
         public ImageFormat ThumbImageFormat => ImageFormat.Png;
 
         public Stream GetThumbImage()

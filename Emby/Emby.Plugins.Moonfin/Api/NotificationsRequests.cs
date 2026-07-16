@@ -36,10 +36,11 @@ namespace Emby.Plugins.Moonfin.Api
     [Authenticated(Roles = "Admin")]
     public class ReprovisionWebhookRequest : IReturn<object> { }
 
-    // Inbound Seerr webhook. Authenticated by a shared secret rather than an Emby token,
-    // so it carries no [Authenticated] attribute.
+    // Inbound Seerr webhook. Seerr posts this with no Emby token, so the route has to answer
+    // without one and the shared secret below is what vouches for the caller.
     [Route("/Moonfin/Seerr/Webhook", "POST")]
     [Route("/Moonfin/Jellyseerr/Webhook", "POST")]
+    [Unauthenticated]
     public class SeerrWebhookRequest : IReturn<object>, IRequiresRequestStream
     {
         public string? Secret { get; set; }
