@@ -18,7 +18,8 @@ public class RdbService
     private readonly ILogger<RdbService> _logger;
 
     // EmulatorJS core -> libretro platform name. The name is both the .rdb filename (minus
-    // extension) and the thumbnail folder, and mirrors the client _libretroPlatform map.
+    // extension) and the thumbnail folder, so GameThumbService reads it through TryGetPlatform
+    // rather than keeping a second copy.
     private static readonly IReadOnlyDictionary<string, string> CoreToPlatform =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -50,6 +51,19 @@ public class RdbService
 
     // Final lookup result cached per ROM path (invalidated when the file changes).
     private readonly ConcurrentDictionary<string, CachedLookup> _lookupCache = new(StringComparer.Ordinal);
+
+    /// <summary>The libretro platform a core maps to, or false when the core has none.</summary>
+    public static bool TryGetPlatform(string? core, out string platform)
+    {
+        if (!string.IsNullOrEmpty(core) && CoreToPlatform.TryGetValue(core, out var found))
+        {
+            platform = found;
+            return true;
+        }
+
+        platform = string.Empty;
+        return false;
+    }
 
     public RdbService(IHttpClientFactory httpClientFactory, ILogger<RdbService> logger)
     {

@@ -30,6 +30,17 @@ namespace Emby.Plugins.Moonfin.Api
         public string GameId { get; set; } = string.Empty;
     }
 
+    [Route("/Moonfin/Games/{LibraryId}/Thumb/{GameId}", "GET")]
+    [Authenticated]
+    public class GetGameThumbRequest : IReturn<object>
+    {
+        public string LibraryId { get; set; } = string.Empty;
+        public string GameId { get; set; } = string.Empty;
+
+        /// <summary>boxart (default), snap or title.</summary>
+        public string? Type { get; set; }
+    }
+
     [Route("/Moonfin/Games/{LibraryId}/Rom/{Token}", "GET")]
     [Authenticated]
     public class GetGameRomRequest : IReturn<object>

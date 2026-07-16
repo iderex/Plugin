@@ -493,6 +493,32 @@ public class GamesService
     }
 
     /// <summary>
+    /// The core and ROM filename a game's art is keyed on. GetGame would answer this too, but it
+    /// also hashes the ROM for the metadata lookup, which is far too much work for an image
+    /// request that arrives once per poster on screen.
+    /// </summary>
+    public (string Core, string FileName)? ResolveThumbSource(string libraryId, string gameId)
+    {
+        var library = GetGameLibraries().FirstOrDefault(l =>
+            SameId(l.Id, libraryId));
+        if (library == null)
+        {
+            return null;
+        }
+
+        var romPath = DecodeToken(gameId);
+        if (romPath == null || !IsWithinLibrary(library, romPath) || !File.Exists(romPath))
+        {
+            return null;
+        }
+
+        var systemDir = FindSystemDir(library, romPath);
+        var systemName = systemDir == null ? string.Empty : Path.GetFileName(systemDir);
+        var core = ResolveSystemCore(systemName, new List<string> { romPath });
+        return (core, Path.GetFileName(romPath));
+    }
+
+    /// <summary>
     /// Resolves an opaque ROM/BIOS token to an absolute on-disk path, validating it lives
     /// inside the given library and has an allowed extension. Returns null on any mismatch.
     /// </summary>

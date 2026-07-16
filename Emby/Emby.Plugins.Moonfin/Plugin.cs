@@ -31,6 +31,7 @@ namespace Emby.Plugins.Moonfin
         public CustomRowCacheService? CustomRowCache { get; private set; }
         public StudioLogoCacheService? StudioLogoCache { get; private set; }
         public StudioLogoFetchService? StudioLogoFetch { get; private set; }
+        public GameThumbService? GameThumbs { get; private set; }
         public NotificationStore? NotificationStore { get; private set; }
         public RelaySender? RelaySender { get; private set; }
         public FcmSender? FcmSender { get; private set; }
@@ -148,6 +149,7 @@ namespace Emby.Plugins.Moonfin
             CustomRowCache = new CustomRowCacheService(mdbLogger);
             StudioLogoCache = new StudioLogoCacheService(mdbLogger);
             StudioLogoFetch = new StudioLogoFetchService(StudioLogoCache, mdbLogger);
+            GameThumbs = new GameThumbService(mdbLogger);
 
             NotificationStore = new NotificationStore(notifyLogger);
             RelaySender = new RelaySender(notifyLogger);

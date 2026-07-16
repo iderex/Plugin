@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Emby.Plugins.Moonfin.Models;
+using Emby.Plugins.Moonfin.Services;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
@@ -77,6 +78,30 @@ namespace Emby.Plugins.Moonfin.Api
             if (!GamesEnabled() || scanner == null) return NotFound();
             var game = scanner.GetGame(request.LibraryId, request.GameId);
             return game == null ? NotFound() : Json(game);
+        }
+
+        /// <summary>
+        /// Streams a game's box art or screenshot, downloading and caching it on first ask. Takes a
+        /// game token and a kind, never a URL, so this cannot be pointed at another host.
+        /// </summary>
+        public async Task<object> Get(GetGameThumbRequest request)
+        {
+            var scanner = Scanner();
+            var thumbs = Plugin.Instance?.GameThumbs;
+            if (!GamesEnabled() || scanner == null || thumbs == null) return NotFound();
+
+            var source = scanner.ResolveThumbSource(request.LibraryId, request.GameId);
+            if (source == null) return NotFound();
+
+            var path = await thumbs
+                .GetThumbPathAsync(source.Value.Core, source.Value.FileName, GameThumbService.ParseKind(request.Type))
+                .ConfigureAwait(false);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return NotFound();
+
+            // Art for a given ROM name never changes, so let clients keep it.
+            Request.Response.AddHeader("Cache-Control", "public,max-age=31536000,immutable");
+            Request.Response.AddHeader("X-Content-Type-Options", "nosniff");
+            return ResultFactory.GetStaticFileResult(Request, path);
         }
 
         public object Get(GetGameRomRequest request)

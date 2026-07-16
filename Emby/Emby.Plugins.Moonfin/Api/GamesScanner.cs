@@ -348,6 +348,25 @@ namespace Emby.Plugins.Moonfin.Api
             return detail;
         }
 
+        /// <summary>
+        /// The core and ROM filename a game's art is keyed on. GetGame answers this too, but it
+        /// also walks the system folder for its other fields, which is more work than an image
+        /// request that arrives once per poster on screen needs.
+        /// </summary>
+        public (string Core, string FileName)? ResolveThumbSource(string libraryId, string gameId)
+        {
+            var library = GetGameLibraries().FirstOrDefault(l => SameId(l.Id, libraryId));
+            if (library == null) return null;
+
+            var romPath = DecodeToken(gameId);
+            if (romPath == null || !IsWithinLibrary(library, romPath) || !File.Exists(romPath)) return null;
+
+            var systemDir = FindSystemDir(library, romPath);
+            var systemName = systemDir == null ? string.Empty : Path.GetFileName(systemDir);
+            var core = ResolveSystemCore(systemName, new List<string> { romPath });
+            return (core, Path.GetFileName(romPath));
+        }
+
         public string? ResolveFilePath(string libraryId, string token, bool allowBios)
         {
             var library = GetGameLibraries().FirstOrDefault(l => SameId(l.Id, libraryId));

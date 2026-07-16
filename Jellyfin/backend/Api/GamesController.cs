@@ -18,11 +18,16 @@ public class GamesController : ControllerBase
 {
     private readonly GamesService _gamesService;
     private readonly CoresService _coresService;
+    private readonly GameThumbService _thumbService;
 
-    public GamesController(GamesService gamesService, CoresService coresService)
+    public GamesController(
+        GamesService gamesService,
+        CoresService coresService,
+        GameThumbService thumbService)
     {
         _gamesService = gamesService;
         _coresService = coresService;
+        _thumbService = thumbService;
     }
 
     /// <summary>Diagnostic dump for troubleshooting library detection (admin only).</summary>
@@ -123,6 +128,44 @@ public class GamesController : ControllerBase
         }
 
         return StreamFile(path);
+    }
+
+    /// <summary>
+    /// Streams a game's box art or screenshot, downloading and caching it on first ask. Takes a
+    /// game token and a kind, never a URL, so this cannot be pointed at another host.
+    /// </summary>
+    [HttpGet("{libraryId}/Thumb/{gameId}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetThumb(
+        [FromRoute] string libraryId,
+        [FromRoute] string gameId,
+        [FromQuery] string? type)
+    {
+        if (!GamesEnabled())
+        {
+            return NotFound();
+        }
+
+        var source = _gamesService.ResolveThumbSource(libraryId, gameId);
+        if (source == null)
+        {
+            return NotFound();
+        }
+
+        var path = await _thumbService
+            .GetThumbPathAsync(source.Value.Core, source.Value.FileName, GameThumbService.ParseKind(type))
+            .ConfigureAwait(false);
+        if (string.IsNullOrEmpty(path))
+        {
+            return NotFound();
+        }
+
+        // Art for a given ROM name never changes, so let clients keep it.
+        Response.Headers["Cache-Control"] = "public,max-age=31536000,immutable";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return PhysicalFile(path, "image/png");
     }
 
     /// <summary>Streams a BIOS file required by a system's core.</summary>

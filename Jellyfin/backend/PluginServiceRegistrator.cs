@@ -33,6 +33,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<GameSavesService>();
         serviceCollection.AddSingleton<CoresService>();
         serviceCollection.AddSingleton<RdbService>();
+        serviceCollection.AddSingleton<GameThumbService>();
         serviceCollection.AddSingleton<LaunchBoxService>();
         serviceCollection.AddHttpClient();
 
