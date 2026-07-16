@@ -494,10 +494,20 @@ public class MoonfinSettingsService
         foreach (var prop in properties)
         {
             var incomingValue = prop.GetValue(incoming);
-            if (incomingValue != null)
+            if (incomingValue == null)
             {
-                prop.SetValue(existing, incomingValue);
+                continue;
             }
+
+            // Older clients push empty API keys, which should not wipe a stored key.
+            if (incomingValue is string text
+                && prop.Name.Contains("ApiKey", StringComparison.Ordinal)
+                && (string.IsNullOrWhiteSpace(text) || text == "null"))
+            {
+                continue;
+            }
+
+            prop.SetValue(existing, incomingValue);
         }
     }
 

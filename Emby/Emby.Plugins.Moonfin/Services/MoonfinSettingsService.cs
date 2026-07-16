@@ -561,7 +561,14 @@ namespace Emby.Plugins.Moonfin.Services
             foreach (var prop in ProfileProps)
             {
                 var incomingValue = prop.GetValue(incoming);
-                if (incomingValue != null) prop.SetValue(existing, incomingValue);
+                if (incomingValue == null) continue;
+
+                // Older clients push empty API keys, which should not wipe a stored key.
+                if (incomingValue is string text
+                    && prop.Name.Contains("ApiKey", StringComparison.Ordinal)
+                    && (string.IsNullOrWhiteSpace(text) || text == "null")) continue;
+
+                prop.SetValue(existing, incomingValue);
             }
         }
 
